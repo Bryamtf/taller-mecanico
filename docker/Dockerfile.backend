@@ -1,0 +1,18 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar package.json primero (mejor caché)
+COPY backend/package*.json ./
+
+RUN npm install
+
+# Copiar resto del código
+COPY backend/ .
+
+# Crear directorio para uploads
+RUN mkdir -p /app/uploads
+
+EXPOSE 3001
+
+CMD ["npm", "run", "dev"]

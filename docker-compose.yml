@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: miautonort_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT_HOST}:${MYSQL_PORT_CONTAINER}"
+    volumes:
+      - ${VOLUME_MYSQL}:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - taller_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: miautonort_phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: ${MYSQL_PORT_CONTAINER}
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${PMA_PORT_HOST}:80"
+    depends_on:
+      - mysql
+    networks:
+      - taller_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: miautonort_backend
+    restart: always
+    environment:
+      NODE_ENV: development
+      PORT: ${BACKEND_PORT_CONTAINER}
+      DB_HOST: mysql
+      DB_PORT: ${MYSQL_PORT_CONTAINER}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      # Estas variables se leerán del archivo backend/.env (lo montamos como volumen)
+    ports:
+      - "${BACKEND_PORT_HOST}:${BACKEND_PORT_CONTAINER}"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ${VOLUME_UPLOADS}:/app/uploads
+      - ./backend/.env:/app/.env 
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - taller_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: miautonort_frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT_HOST}:${FRONTEND_PORT_CONTAINER}"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - ./frontend/.env:/app/.env 
+    environment:
+      VITE_API_URL: http://localhost:${BACKEND_PORT_HOST}/api
+      VITE_SOCKET_URL: http://localhost:${BACKEND_PORT_HOST}
+    depends_on:
+      - backend
+    networks:
+      - taller_network
+
+  # Opcional: Redis para notificaciones
+  redis:
+    image: redis:alpine
+    container_name: miautonort_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT_HOST}:${REDIS_PORT_CONTAINER}"
+    networks:
+      - taller_network
+
+networks:
+  taller_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: ${VOLUME_MYSQL}
+  uploads_volumen:
+    name: ${VOLUME_UPLOADS}

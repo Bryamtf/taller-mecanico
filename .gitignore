@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Entornos locales (NO subir a Git)
+.env                # ← Raíz (docker-compose variables)
+backend/.env        # ← Backend variables
+frontend/.env       # ← Frontend variables
+.env.local
+.env.production
+
+# Base de datos
+*.sqlite
+*.db
+
+# Imágenes subidas
+uploads/
+backend/uploads/
+frontend/public/uploads/
+
+# Builds
+dist/
+build/
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (datos persistentes)
+mysql_data/
+uploads_volumen/
+.env
