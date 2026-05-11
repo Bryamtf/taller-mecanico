@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 // Archivos estáticos (imágenes)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Importar rutas (ASEGÚRATE que cada archivo exporta el router)
+const authRoutes = require("./routes/auth");
 const citaRoutes = require("./routes/citas");
 const clienteRoutes = require("./routes/clientes");
 const cotizacionRoutes = require("./routes/cotizaciones");
@@ -22,7 +22,7 @@ const usuarioRoutes = require("./routes/usuarios");
 const comprobanteRoutes = require("./routes/comprobantes");
 const consultaPlacaRoutes = require("./routes/consultaPlaca");
 
-// Usar rutas (VERIFICA que cada variable es un router válido)
+app.use("/api/auth", authRoutes);
 app.use("/api/citas", citaRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/cotizaciones", cotizacionRoutes);

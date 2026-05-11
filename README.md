@@ -26,3 +26,7 @@ docker-compose up -d
 
 # Ver logs
 docker-compose logs -f
+
+# Comando para instalar dependencias
+npm install jsonwebtoken bcryptjs express-validator multer
+npm install pdfkit nodemailer

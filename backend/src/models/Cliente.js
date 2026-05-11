@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const pool  = require('../config/database');
 
 const buscarPorNombreOApellido = async (termino) => {
     // Usamos LIKE para buscar coincidencias parciales mientras el usuario escribe
