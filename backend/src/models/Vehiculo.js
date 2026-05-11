@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const  pool  = require('../config/database');
 
 const buscarVehiculosPorCliente = async (cliente_id) => {
     const query = `
