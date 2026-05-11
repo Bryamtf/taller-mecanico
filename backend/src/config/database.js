@@ -26,6 +26,6 @@ const testConnection = async () => {
     return false;
   }
 };
-
+pool.testConnection = testConnection;
 // Exportar pool y función de prueba
-module.exports = { pool, testConnection };
+module.exports = pool;
