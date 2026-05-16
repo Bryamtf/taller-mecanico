@@ -18,6 +18,7 @@ const citaRoutes = require("./routes/citas");
 const clienteRoutes = require("./routes/clientes");
 const cotizacionRoutes = require("./routes/cotizaciones");
 const inventarioRoutes = require("./routes/inventario");
+const articulosRoutes = require("./routes/articulos")
 const usuarioRoutes = require("./routes/usuarios");
 const comprobanteRoutes = require("./routes/comprobantes");
 const consultaPlacaRoutes = require("./routes/consultaPlaca");
@@ -27,6 +28,7 @@ app.use("/api/citas", citaRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/cotizaciones", cotizacionRoutes);
 app.use("/api/inventario", inventarioRoutes);
+app.use("/api/articulos",articulosRoutes)
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/comprobantes", comprobanteRoutes);
 app.use("/api/consulta-placa", consultaPlacaRoutes);
