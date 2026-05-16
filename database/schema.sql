@@ -563,3 +563,10 @@ ADD INDEX idx_deleted_at (deleted_at);
 
 -- También agregar a Detalle_cotizacion 
 -- ALTER TABLE Detalle_cotizacion ADD COLUMN deleted_at DATETIME NULL;
+
+
+/*
+  SEBASTIAN: AGREGAR FILA A PERMISOS: Editar Ventas
+*/
+INSERT INTO Permiso (nombre, modulo) VALUES
+  ('editar_ventas', 'ventas')
