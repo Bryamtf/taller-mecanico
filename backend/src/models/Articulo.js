@@ -39,6 +39,21 @@ const crearArticulo = async (datosArticulo) => {
             await connection.query(queryPrecio, valoresPrecio);
         }
 
+        if (datosArticulo.imagenes && Array.isArray(datosArticulo.imagenes)) {
+            const queryImagen = `
+                INSERT INTO Imagenes (articulo_id, ruta_archivo, tipo, orden, visible_cliente)
+                VALUES (?, ?, 'articulo', ?, 1)
+            `;
+            
+            for (const img of datosArticulo.imagenes) {
+                await connection.query(queryImagen, [
+                    nuevoArticuloId, 
+                    img.ruta_archivo, 
+                    img.orden
+                ]);
+            }
+        }
+
         await connection.commit();
         return { insertId: nuevoArticuloId };
 
@@ -95,6 +110,27 @@ const actualizarArticulo = async (id, datosArticulo) => {
     }
 };
 
+const actualizarOrdenImagenes = async (imagenesOrdenadas) => {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const query = `UPDATE Imagenes SET orden = ? WHERE imagen_id = ?`;
+        
+        for (const img of imagenesOrdenadas) {
+            await connection.query(query, [img.orden, img.imagen_id]);
+        }
+
+        await connection.commit();
+        return true;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
+
 const eliminarLogicoArticulo = async (id) => {
     // Lo desactivamos (activo = 0) para no romper el historial de ventas o cotizaciones
     const query = `UPDATE Articulos SET activo = 0 WHERE articulo_id = ?`;
@@ -108,4 +144,4 @@ const reactivarArticulo = async (id) => {
     return result.affectedRows > 0;
 }
 
-module.exports = { crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo };
+module.exports = { crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo, actualizarOrdenImagenes };
