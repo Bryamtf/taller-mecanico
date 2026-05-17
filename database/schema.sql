@@ -560,3 +560,23 @@ ALTER TABLE Imagenes
 ADD CONSTRAINT fk_img_articulo 
 FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id) 
 ON DELETE CASCADE ON UPDATE CASCADE;
+-- NUEVAS COLUMNAS
+ALTER TABLE Cotizacion 
+ADD COLUMN pdf_path VARCHAR(500) NULL AFTER observaciones,
+ADD COLUMN token_publico CHAR(64) NULL UNIQUE AFTER pdf_path,
+ADD COLUMN token_expira DATETIME NULL AFTER token_publico;
+
+-- Agregar campo deleted_at para soft delete
+ALTER TABLE Cotizacion 
+ADD COLUMN deleted_at DATETIME NULL AFTER token_expira,
+ADD INDEX idx_deleted_at (deleted_at);
+
+-- También agregar a Detalle_cotizacion 
+-- ALTER TABLE Detalle_cotizacion ADD COLUMN deleted_at DATETIME NULL;
+
+
+/*
+  SEBASTIAN: AGREGAR FILA A PERMISOS: Editar Ventas
+*/
+INSERT INTO Permiso (nombre, modulo) VALUES
+  ('editar_ventas', 'ventas')
