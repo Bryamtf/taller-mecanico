@@ -65,12 +65,17 @@ const crearArticulo = async (datosArticulo) => {
     }
 };
 
-const actualizarArticulo = async (id, datosArticulo) => {
+const obtenerMaxOrden = async (articulo_id) => {
+    const [rows] = await pool.query(`SELECT MAX(orden) as max_orden FROM Imagenes WHERE articulo_id = ?`, [articulo_id]);
+    return rows[0].max_orden !== null ? rows[0].max_orden : -1;
+};
+
+const actualizarArticulo = async (id, datosArticulo, nuevas_imagenes = [], imagenes_a_eliminar = []) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
 
-        // 1. Actualizar los datos base del artículo
+        // 1. Actualizar los datos base de texto
         const queryArticulo = `
             UPDATE Articulos SET 
                 nombre = ?, descripcion = ?, codigo_barras = ?, 
@@ -84,7 +89,7 @@ const actualizarArticulo = async (id, datosArticulo) => {
         ];
         await connection.query(queryArticulo, valoresArticulo);
 
-        // 2. Si nos envían datos de precio/marca, los actualizamos
+        // 2. Actualizar precio y stock
         if (datosArticulo.marca_id) {
             const queryPrecio = `
                 INSERT INTO Articulo_Marca_Precio (articulo_id, marca_id, precio_venta, precio_costo, stock_actual)
@@ -100,6 +105,24 @@ const actualizarArticulo = async (id, datosArticulo) => {
             ]);
         }
 
+        // 3. ELIMINAR fotos viejas (Si el frontend nos mandó IDs para borrar)
+        if (imagenes_a_eliminar.length > 0) {
+            // El IN (?) permite pasarle un arreglo entero y MySQL borra todos de golpe
+            const queryEliminarImg = `DELETE FROM Imagenes WHERE imagen_id IN (?)`;
+            await connection.query(queryEliminarImg, [imagenes_a_eliminar]);
+        }
+
+        // 4. INSERTAR fotos nuevas (calculando el orden correcto)
+        if (nuevas_imagenes.length > 0) {
+            const queryInsertarImg = `
+                INSERT INTO Imagenes (articulo_id, ruta_archivo, tipo, orden, visible_cliente)
+                VALUES (?, ?, 'articulo', ?, 1)
+            `;
+            for (const img of nuevas_imagenes) {
+                await connection.query(queryInsertarImg, [id, img.ruta_archivo, img.orden]);
+            }
+        }
+
         await connection.commit();
         return true;
     } catch (error) {
@@ -110,15 +133,28 @@ const actualizarArticulo = async (id, datosArticulo) => {
     }
 };
 
-const actualizarOrdenImagenes = async (imagenesOrdenadas) => {
+const obtenerDetallesImagenes = async (ids) => {
+    const query = `
+        SELECT i.imagen_id, i.ruta_archivo, a.codigo_interno, a.codigo_barras 
+        FROM Imagenes i 
+        JOIN Articulos a ON i.articulo_id = a.articulo_id 
+        WHERE i.imagen_id IN (?)
+    `;
+    const [rows] = await pool.query(query, [ids]);
+    return rows;
+};
+
+const actualizarOrdenImagenes = async (imagenesActualizadas) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
 
-        const query = `UPDATE Imagenes SET orden = ? WHERE imagen_id = ?`;
+        // Ahora actualizamos tanto el orden como la nueva ruta del archivo renombrado
+        const query = `UPDATE Imagenes SET orden = ?, ruta_archivo = ? WHERE imagen_id = ?`;
         
-        for (const img of imagenesOrdenadas) {
-            await connection.query(query, [img.orden, img.imagen_id]);
+        // Recorremos el arreglo que nos manda el controlador
+        for (const img of imagenesActualizadas) {
+            await connection.query(query, [img.orden, img.ruta_archivo, img.imagen_id]);
         }
 
         await connection.commit();
@@ -144,4 +180,4 @@ const reactivarArticulo = async (id) => {
     return result.affectedRows > 0;
 }
 
-module.exports = { crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo, actualizarOrdenImagenes };
+module.exports = { crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo, actualizarOrdenImagenes, obtenerMaxOrden, obtenerDetallesImagenes };

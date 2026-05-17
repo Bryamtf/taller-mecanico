@@ -12,13 +12,13 @@ const asegurarCarpeta = (ruta) => {
 // 1. Configuración ESPECÍFICA para Artículos
 const storageArticulos = multer.diskStorage({
     destination: function (req, file, cb) {
-        const ruta = path.join(__dirname, '../../uploads/articulos');
+        const ruta = path.join(__dirname, '../../uploads/articulos/temp');
         asegurarCarpeta(ruta);
         cb(null, ruta);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'art-' + uniqueSuffix + path.extname(file.originalname));
+        cb(null, 'temp-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
 

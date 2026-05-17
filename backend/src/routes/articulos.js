@@ -12,7 +12,7 @@ router.put('/imagenes/orden', articuloController.cambiarOrdenImagenes);
 router.post('/', articuloController.crearNuevoArticulo);
 
 // Actualizar (PUT)
-router.put('/:id', articuloController.editarArticulo);
+router.put('/:id', uploadArticulos.array('imagenes',5) ,articuloController.editarArticulo);
 
 // Eliminar (DELETE)
 router.delete('/:id', articuloController.eliminarArticulo);
