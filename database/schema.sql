@@ -550,6 +550,16 @@ SELECT r.rol_id, p.permiso_id, 1, 0, 0, 0
 FROM Rol r, Permiso p
 WHERE r.nombre = 'ayudante'
   AND p.nombre = 'ver_cotizaciones';
+
+-- Se agrego foreign key en la tabla imagenes para que los articulos tengan imagenes
+ALTER TABLE Imagenes 
+ADD COLUMN articulo_id INT NULL AFTER cotizacion_id,
+ADD COLUMN orden INT NOT NULL DEFAULT 0 AFTER visible_cliente;
+
+ALTER TABLE Imagenes 
+ADD CONSTRAINT fk_img_articulo 
+FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id) 
+ON DELETE CASCADE ON UPDATE CASCADE;
 -- NUEVAS COLUMNAS
 ALTER TABLE Cotizacion 
 ADD COLUMN pdf_path VARCHAR(500) NULL AFTER observaciones,

@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const inventarioController = require('../controllers/inventarioController'); // Ajusta la ruta a tu archivo
+const inventarioController = require('../controllers/inventarioController');
 
-// Ruta GET para obtener los datos (la que ya tenías)
+// Ruta GET para el listado general
 router.get('/', inventarioController.obtenerInventario);
-
-// NUEVA Ruta POST para guardar los datos
-router.post('/', inventarioController.crearNuevoArticulo); 
 
 module.exports = router;
