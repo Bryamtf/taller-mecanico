@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const pool = require('../config/database');
 
 const crearArticulo = async (datosArticulo) => {
     const connection = await pool.getConnection();
