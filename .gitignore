@@ -3,6 +3,10 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+backend/package.json
+backend/*.yaml
+
+
 
 # Entornos locales (NO subir a Git)
 .env                # ← Raíz (docker-compose variables)
@@ -39,3 +43,4 @@ Thumbs.db
 mysql_data/
 uploads_volumen/
 .env
+backend/package.json
