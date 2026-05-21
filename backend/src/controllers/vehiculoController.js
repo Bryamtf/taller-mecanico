@@ -3,7 +3,7 @@ const Vehiculo = require('../models/Vehiculo');
 // Helper para consultar la API externa
 const consultarPlacaAPI = async (placa) => {
     try {
-        const response = await fetch('https://api.json.pe/api/placa', {
+        const response = await fetch(process.env.API_PLACA_VEHICULO, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.API_JSON_PE_TOKEN}`,
@@ -14,7 +14,7 @@ const consultarPlacaAPI = async (placa) => {
         const data = await response.json();
         return data.success ? data.data : null;
     } catch (error) {
-        console.error("Error al consultar API json.pe:", error);
+        console.error("Error al consultar API externa de placa:", error);
         return null; 
     }
 };
