@@ -24,6 +24,8 @@ const rolRoutes = require("./routes/roles");
 const permisoRoutes = require("./routes/permisos");
 const comprobanteRoutes = require("./routes/comprobantes");
 const consultaPlacaRoutes = require("./routes/consultaPlaca");
+const marcaRoutes = require("./routes/marca");
+const vehiculoRoutes = require("./routes/vehiculo");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/citas", citaRoutes);
@@ -36,6 +38,8 @@ app.use("/api/roles", rolRoutes);
 app.use("/api/permisos", permisoRoutes);
 app.use("/api/comprobantes", comprobanteRoutes);
 app.use("/api/consulta-placa", consultaPlacaRoutes);
+app.use("/api/marcas",marcaRoutes);
+app.use("/api/vehiculos",vehiculoRoutes);
 
 // Ruta de prueba
 app.get("/api/health", (req, res) => {
