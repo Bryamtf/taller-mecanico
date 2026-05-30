@@ -1,7 +1,7 @@
 import { useLogin } from '../hooks/useLogin';
 
 export default function LoginForm() {
-  const { register, handleSubmit, errors, loading, serverError } = useLogin();
+  const { register, handleSubmit, errors, loading } = useLogin();
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -15,7 +15,7 @@ export default function LoginForm() {
           {...register('username', { required: 'El usuario es requerido' })}
           type="text"
           placeholder="Ingresa tu usuario"
-          className="rounded-lg border border-gray-400 px-4 py-3 text-sm outline-none focus:border-[#C9A227] transition-colors"
+          className="rounded-lg border border-gray-400 px-4 py-3 text-sm outline-none focus:border-[#C9A227] transition-colors tracking-widest"
         />
         {errors.username && (
           <span className="text-xs text-red-500">{errors.username.message}</span>
@@ -28,16 +28,12 @@ export default function LoginForm() {
           {...register('password', { required: 'La clave es requerida' })}
           type="password"
           placeholder="••••••••"
-          className="rounded-lg border border-gray-400 px-4 py-3 text-sm outline-none focus:border-[#C9A227] transition-colors"
+          className="rounded-lg border border-gray-400 px-4 py-3 text-sm outline-none focus:border-[#C9A227] transition-colors tracking-widest"
         />
         {errors.password && (
           <span className="text-xs text-red-500">{errors.password.message}</span>
         )}
       </div>
-
-      {serverError && (
-        <p className="text-center text-sm text-red-500">{serverError}</p>
-      )}
 
       <button
         type="submit"
