@@ -26,7 +26,7 @@ const authController = {
       if (rows.length === 0) {
         return res.status(401).json({
           success: false,
-          message: "Usuario o contraseña incorrectos",
+          message: "Usuario no encontrado",
         });
       }
 
@@ -44,7 +44,7 @@ const authController = {
       if (!isValid) {
         return res.status(401).json({
           success: false,
-          message: "Usuario o contraseña incorrectos",
+          message: "Contraseña incorrecta",
         });
       }
 

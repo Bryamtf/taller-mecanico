@@ -580,3 +580,8 @@ ADD INDEX idx_deleted_at (deleted_at);
 */
 INSERT INTO Permiso (nombre, modulo) VALUES
   ('editar_ventas', 'ventas')
+
+/*
+  SEBASTIAN: Hacer que el correo de la tabla usuarios sean únicos.
+*/
+ALTER TABLE `Usuario` ADD UNIQUE(`email`);
