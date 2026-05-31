@@ -1,6 +1,6 @@
 const pool = require("../config/database");
 const DetalleCotizacion = {
-  async crear(data) {
+  async crear(data, conn = null) {
     const {
       cotizacion_id,
       articulo_id,
@@ -13,7 +13,7 @@ const DetalleCotizacion = {
       es_servicio,
     } = data;
 
-    const [result] = await pool.execute(
+    const [result] = await (conn || pool).execute(
       `INSERT INTO Detalle_cotizacion (
                 cotizacion_id, articulo_id, marca_id, descripcion_custom,
                 cantidad, precio_unitario, descuento, subtotal, es_servicio

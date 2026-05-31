@@ -582,6 +582,25 @@ INSERT INTO Permiso (nombre, modulo) VALUES
   ('editar_ventas', 'ventas')
 
 /*
+* Bryam: Tabla correativo de numero de cotizacion
+*/
+CREATE TABLE IF NOT EXISTS Correlativo_Cotizacion (
+    id INT NOT NULL AUTO_INCREMENT,
+    anio INT NOT NULL,
+    ultimo_numero INT NOT NULL DEFAULT 0,
+    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_anio (anio)
+) ENGINE=InnoDB COMMENT='Control de correlativo anual para cotizaciones';
+
+-- Paso 1: Agregar la columna permitiendo NULL temporalmente
+ALTER TABLE Cotizacion 
+ADD COLUMN numero_cotizacion VARCHAR(20) NULL 
+COMMENT 'Número formateado: COT-2026-000001';
+
+-- Paso 2: Agregar índice único (no puede haber números duplicados)
+ALTER TABLE Cotizacion 
+ADD UNIQUE INDEX uq_numero_cotizacion (numero_cotizacion);
   SEBASTIAN: Hacer que el correo de la tabla usuarios sean únicos.
 */
 ALTER TABLE `Usuario` ADD UNIQUE(`email`);

@@ -27,3 +27,8 @@ VALUES (
     1, 
     1
 );-- Taller123
+
+--  Datos de Correlativo
+INSERT INTO Correlativo_Cotizacion (anio, ultimo_numero) 
+VALUES (2026, 0)
+ON DUPLICATE KEY UPDATE anio = anio;
