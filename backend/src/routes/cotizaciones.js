@@ -5,6 +5,11 @@ const {
   authMiddleware,
   checkPermiso,
 } = require("../middleware/authMiddleware");
+const { uploadImagenesCotizacion } = require("../middleware/uploadMiddleware");
+
+
+// publica
+router.get("/public/:token", cotizacionController.obtenerPorToken);
 
 // Todas requieren autenticación
 router.use(authMiddleware);
@@ -18,7 +23,9 @@ router.get(
 );
 router.post(
   "/",
+  authMiddleware,
   checkPermiso("crear_cotizaciones"),
+  uploadImagenesCotizacion.array("imagenes", 10),
   cotizacionController.crear,
 );
 router.put(
@@ -80,7 +87,6 @@ router.post(
 );
 
 // Público (con token, sin auth)
-router.get("/public/:token", cotizacionController.obtenerPorToken);
 router.get("/:id/pdf", cotizacionController.descargarPDF);
 router.post("/:id/pdf", cotizacionController.generarYGuardarPDF);
 router.post("/:id/compartir/whatsapp", cotizacionController.compartirWhatsApp);
