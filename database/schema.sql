@@ -601,3 +601,6 @@ COMMENT 'Número formateado: COT-2026-000001';
 -- Paso 2: Agregar índice único (no puede haber números duplicados)
 ALTER TABLE Cotizacion 
 ADD UNIQUE INDEX uq_numero_cotizacion (numero_cotizacion);
+  SEBASTIAN: Hacer que el correo de la tabla usuarios sean únicos.
+*/
+ALTER TABLE `Usuario` ADD UNIQUE(`email`);

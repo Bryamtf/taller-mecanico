@@ -1,6 +1,10 @@
 const pool = require("../config/database");
 
 class Usuario {
+  static isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
   static async findAllActive() {
     const [usuarios] = await pool.execute(
       `SELECT u.username, u.email, u.nombre_completo, u.rol_id, r.nombre AS rol_nombre, u.activo
@@ -31,6 +35,37 @@ class Usuario {
     nombre_completo = null,
     rol_id,
   }) {
+    if (!email) {
+      throw new Error("EL_CORREO_ES_REQUERIDO");
+    }
+
+    if (!Usuario.isValidEmail(email)) {
+      throw new Error("FORMATO_DE_CORREO_INVALIDO");
+    }
+
+    const [usuariosExistentes] = await pool.execute(
+      `SELECT username, email
+       FROM Usuario
+       WHERE email = ? OR username = ?`,
+      [email, username],
+    );
+
+    if (
+      usuariosExistentes.some(
+        (usuario) => usuario.email.toLowerCase() === email.toLowerCase(),
+      )
+    ) {
+      throw new Error("EL_CORREO_YA_ESTA_REGISTRADO");
+    }
+
+    if (
+      usuariosExistentes.some(
+        (usuario) => usuario.username.toLowerCase() === username.toLowerCase(),
+      )
+    ) {
+      throw new Error("EL_USERNAME_YA_ESTA_EN_USO");
+    }
+
     await pool.execute(
       `INSERT INTO Usuario
         (username, email, password_hash, nombre_completo, rol_id)
@@ -47,12 +82,45 @@ class Usuario {
     };
   }
 
-  static async update(username, { nombre_completo = null, email = null, rol_id }) {
+  static async update(username, { nombre_completo = null, email, rol_id }) {
+    const incluyeEmail = email !== undefined;
+    let emailActual = email;
+
+    if (incluyeEmail) {
+      if (!Usuario.isValidEmail(email)) {
+        throw new Error("FORMATO_DE_CORREO_INVALIDO");
+      }
+
+      const [usuariosExistentes] = await pool.execute(
+        `SELECT username
+         FROM Usuario
+         WHERE email = ? AND username <> ?`,
+        [email, username],
+      );
+
+      if (usuariosExistentes.length > 0) {
+        throw new Error("EL_CORREO_YA_ESTA_REGISTRADO");
+      }
+    } else {
+      const [usuarios] = await pool.execute(
+        `SELECT email
+         FROM Usuario
+         WHERE username = ? AND activo = 1`,
+        [username],
+      );
+
+      if (usuarios.length === 0) {
+        return false;
+      }
+
+      emailActual = usuarios[0].email;
+    }
+
     const [result] = await pool.execute(
       `UPDATE Usuario
        SET nombre_completo = ?, email = ?, rol_id = ?
        WHERE username = ? AND activo = 1`,
-      [nombre_completo, email, rol_id, username],
+      [nombre_completo, emailActual, rol_id, username],
     );
 
     return result.affectedRows > 0;
