@@ -2,7 +2,7 @@ const pool = require("../config/database");
 const DetalleCotizacion = require("../models/DetalleCotizacion");
 
 const Cotizacion = {
-  async crear(data) {
+  async crear(data, conn = null) {
     const {
       cliente_id,
       vehiculo_id,
@@ -19,14 +19,16 @@ const Cotizacion = {
       fecha_emision,
       fecha_vencimiento,
       observaciones,
+      numero_cotizacion,
     } = data;
-    const [result] = await pool.execute(
+    const [result] = await ( conn||pool).execute(
       `INSERT INTO Cotizacion (
-                cliente_id, vehiculo_id, cita_id, creado_por,
-                es_modelo, nombre_modelo, cotizacion_origen_id,
-                estado, kilometraje_momento, subtotal, descuento, igv, total,
-                fecha_emision, fecha_vencimiento, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?)`,
+            cliente_id, vehiculo_id, cita_id, creado_por,
+            es_modelo, nombre_modelo, cotizacion_origen_id,
+            estado, kilometraje_momento, subtotal, descuento, igv, total,
+            fecha_emision, fecha_vencimiento, observaciones,
+            numero_cotizacion
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         cliente_id,
         vehiculo_id,
@@ -43,14 +45,17 @@ const Cotizacion = {
         fecha_emision,
         fecha_vencimiento || null,
         observaciones || null,
+        numero_cotizacion || null,
       ],
     );
     return result.insertId;
   },
 
-  async encontrarPorId(id) {
-    const [rows] = await pool.execute(
+  async encontrarPorId(id, conn = null) {
+      const db = conn || pool;
+    const [rows] = await db.execute(
       `SELECT c.*, 
+                c.numero_cotizacion,
                 CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
                 cli.dni_ruc, cli.telefono, cli.email,
                 v.placa, v.marca, v.modelo, v.color
@@ -78,13 +83,17 @@ const Cotizacion = {
   },
 
   async listarCotizaciones(filtros = {}) {
-    let sql = `SELECT c.*, 
-                CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
-                v.placa
-                FROM Cotizacion c
-                JOIN Cliente cli ON c.cliente_id = cli.cliente_id
-                JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
-                WHERE 1=1`;
+    let sql = `SELECT c.cotizacion_id, 
+                      c.numero_cotizacion,
+                      c.estado,
+                      c.fecha_emision,
+                      c.total,
+                      CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
+                      v.placa
+               FROM Cotizacion c
+               JOIN Cliente cli ON c.cliente_id = cli.cliente_id
+               JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
+               WHERE (c.deleted_at IS NULL OR c.deleted_at IS NULL)`;
     const params = [];
 
     if (filtros.estado) {
@@ -102,7 +111,7 @@ const Cotizacion = {
       params.push(filtros.es_modelo);
     }
 
-    sql += ` ORDER BY c.fecha_registro DESC`;
+    sql += ` ORDER BY c.cotizacion_id DESC`;
 
     const [rows] = await pool.execute(sql, params);
     return rows;
@@ -128,7 +137,8 @@ const Cotizacion = {
     return result.affectedRows > 0;
   },
 
-  async actualizarCotizacion(id, data) {
+  async actualizarCotizacion(id, data, conn = null) {
+    const db = conn || pool;
     const fields = [];
     const values = [];
     const allowed = [
@@ -155,13 +165,13 @@ const Cotizacion = {
 
     for (const key of allowed) {
       if (data[key] !== undefined) {
-       fields.push(`${key} = ?`);
+        fields.push(`${key} = ?`);
         values.push(data[key]);
       }
     }
     if (fields.length === 0) return false;
     values.push(id);
-    const [result] = await pool.execute(
+    const [result] = await db.execute(
       `UPDATE Cotizacion SET ${fields.join(", ")} WHERE cotizacion_id = ?`,
       values,
     );
