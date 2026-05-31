@@ -30,5 +30,16 @@ const crearCliente = async (datosCliente) => {
     const [result] = await pool.query(query, valores);
     return result;
 };
+const buscarPorId = async (cliente_id) => {
+  const query = `
+        SELECT cliente_id, nombres, apellidos, dni_ruc, telefono, email, direccion
+        FROM Cliente
+        WHERE cliente_id = ?
+        LIMIT 1;
+    `;
 
-module.exports = { buscarPorNombreOApellido, crearCliente };
+  const [rows] = await pool.query(query, [cliente_id]);
+  return rows[0] || null;
+};
+
+module.exports = { buscarPorNombreOApellido, crearCliente, buscarPorId };
