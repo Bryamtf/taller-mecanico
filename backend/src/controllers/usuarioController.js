@@ -2,6 +2,12 @@ const bcrypt = require("bcryptjs");
 const Usuario = require("../models/Usuario");
 
 const PASSWORD_DEFAULT = "Autonort2026";
+const ERRORES_USUARIO = {
+  EL_CORREO_ES_REQUERIDO: { status: 400, message: "El correo es requerido" },
+  FORMATO_DE_CORREO_INVALIDO: { status: 400, message: "Formato de correo invalido" },
+  EL_CORREO_YA_ESTA_REGISTRADO: { status: 409, message: "El correo ya esta registrado" },
+  EL_USERNAME_YA_ESTA_EN_USO: { status: 409, message: "El username ya existe" },
+};
 
 const usuarioController = {
   async listarUsuarios(req, res) {
@@ -35,16 +41,6 @@ const usuarioController = {
         });
       }
 
-      const existente = await Usuario.findByUsername(username);
-
-      if (existente) {
-        return res.status(409).json({
-          success: false,
-          message: "El username ya existe",
-          data: null,
-        });
-      }
-
       const password_hash = await bcrypt.hash(password, 10);
 
       const usuario = await Usuario.create({
@@ -65,9 +61,15 @@ const usuarioController = {
     } catch (error) {
       console.error("Error al crear usuario:", error);
 
-      const status = error.code === "ER_NO_REFERENCED_ROW_2" ? 400 : 500;
-      const message =
-        error.code === "ER_NO_REFERENCED_ROW_2"
+      const errorUsuario = ERRORES_USUARIO[error.message];
+      const status = errorUsuario
+        ? errorUsuario.status
+        : error.code === "ER_NO_REFERENCED_ROW_2"
+          ? 400
+          : 500;
+      const message = errorUsuario
+        ? errorUsuario.message
+        : error.code === "ER_NO_REFERENCED_ROW_2"
           ? "El rol_id enviado no existe"
           : "Error al crear usuario";
 
@@ -82,7 +84,15 @@ const usuarioController = {
   async actualizarUsuario(req, res) {
     try {
       const { username } = req.params;
-      const { nombre_completo = null, email = null, rol_id } = req.body;
+      const { nombre_completo = null, rol_id } = req.body;
+      const datosActualizar = {
+        nombre_completo,
+        rol_id,
+      };
+
+      if (Object.prototype.hasOwnProperty.call(req.body, "email")) {
+        datosActualizar.email = req.body.email;
+      }
 
       if (!rol_id) {
         return res.status(400).json({
@@ -92,11 +102,7 @@ const usuarioController = {
         });
       }
 
-      const actualizado = await Usuario.update(username, {
-        nombre_completo,
-        email,
-        rol_id,
-      });
+      const actualizado = await Usuario.update(username, datosActualizar);
 
       if (!actualizado) {
         return res.status(404).json({
@@ -112,7 +118,9 @@ const usuarioController = {
         data: {
           usuario: {
             username,
-            email,
+            email: Object.prototype.hasOwnProperty.call(req.body, "email")
+              ? req.body.email
+              : null,
             nombre_completo,
             rol_id,
           },
@@ -121,9 +129,15 @@ const usuarioController = {
     } catch (error) {
       console.error("Error al actualizar usuario:", error);
 
-      const status = error.code === "ER_NO_REFERENCED_ROW_2" ? 400 : 500;
-      const message =
-        error.code === "ER_NO_REFERENCED_ROW_2"
+      const errorUsuario = ERRORES_USUARIO[error.message];
+      const status = errorUsuario
+        ? errorUsuario.status
+        : error.code === "ER_NO_REFERENCED_ROW_2"
+          ? 400
+          : 500;
+      const message = errorUsuario
+        ? errorUsuario.message
+        : error.code === "ER_NO_REFERENCED_ROW_2"
           ? "El rol_id enviado no existe"
           : "Error al actualizar usuario";
 
