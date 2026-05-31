@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './PrivateRoute';
+import MainLayout from '@/layouts/MainLayout';
 import LoginPage from '@/features/auth/pages/LoginPage';
 
 export default function AppRoutes() {
@@ -9,8 +10,17 @@ export default function AppRoutes() {
 
       {/* Rutas protegidas */}
       <Route element={<PrivateRoute />}>
-        {/* Dashboard y demás páginas se agregarán aquí */}
-        <Route path="/dashboard" element={<div className="p-8 text-xl">Dashboard (en construcción)</div>} />
+        <Route element={<MainLayout />}>
+          <Route path="/dashboard"     element={<div className="text-xl font-semibold">Dashboard</div>} />
+          <Route path="/citas"         element={<div className="text-xl font-semibold">Citas</div>} />
+          <Route path="/inventario"    element={<div className="text-xl font-semibold">Inventario</div>} />
+          <Route path="/cotizaciones"  element={<div className="text-xl font-semibold">Cotizaciones</div>} />
+          <Route path="/ventas"        element={<div className="text-xl font-semibold">Ventas</div>} />
+          <Route path="/reportes"      element={<div className="text-xl font-semibold">Reportes</div>} />
+          <Route path="/ingresos"      element={<div className="text-xl font-semibold">Ingresos</div>} />
+          <Route path="/egresos"       element={<div className="text-xl font-semibold">Egresos</div>} />
+          <Route path="/usuarios"      element={<div className="text-xl font-semibold">Usuarios</div>} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
