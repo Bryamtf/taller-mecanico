@@ -1,13 +1,14 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import PrivateRoute from './PrivateRoute';
-import MainLayout from '@/layouts/MainLayout';
-import LoginPage from '@/features/auth/pages/LoginPage';
+import { Routes, Route, Navigate } from "react-router-dom";
+import PrivateRoute from "./PrivateRoute";
+import MainLayout from "@/layouts/MainLayout";
+import LoginPage from "@/features/auth/pages/LoginPage";
+import ClientesPage from "@/features/clientes/pages/ClientesPage";
 
 import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
-import NuevaCotizacion from '@/features/cotizaciones/pages/NuevaCotizacion';
+import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 
 // Agregar esta ruta dentro del MainLayout
-<Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />
+<Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />;
 
 export default function AppRoutes() {
   return (
@@ -21,6 +22,7 @@ export default function AppRoutes() {
             path="/dashboard"
             element={<div className="text-xl font-semibold">Dashboard</div>}
           />
+          <Route path="/clientes" element={<ClientesPage />} />
           <Route
             path="/citas"
             element={<div className="text-xl font-semibold">Citas</div>}

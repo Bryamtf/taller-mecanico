@@ -1,7 +1,7 @@
 import Swal from 'sweetalert2';
 
 export const swal = Swal.mixin({
-  confirmButtonColor: '#C9A227',
+  confirmButtonColor: '#e5ba4a',
   cancelButtonColor: '#6b7280',
   customClass: { popup: 'font-alro' },
 });

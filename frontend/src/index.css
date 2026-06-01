@@ -21,6 +21,7 @@
 body {
   margin: 0;
   font-family: 'Alro', sans-serif;
+  background-color: #f0ede8;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

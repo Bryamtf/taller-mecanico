@@ -51,11 +51,9 @@ const crearVehiculo = async (req, res) => {
     });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
-      return res
-        .status(400)
-        .json({
-          message: "La placa ingresada ya está registrada en el sistema.",
-        });
+      return res.status(400).json({
+        message: "La placa ingresada ya está registrada en el sistema.",
+      });
     }
     if (error.code === "ER_NO_REFERENCED_ROW_2") {
       return res.status(400).json({ message: "El ID del cliente no existe." });
@@ -116,15 +114,26 @@ const eliminarVehiculo = async (req, res) => {
     res.json({ message: "Vehículo eliminado." });
   } catch (error) {
     if (error.code === "ER_ROW_IS_REFERENCED_2") {
-      return res
-        .status(400)
-        .json({
-          message:
-            "No puedes eliminar este vehículo porque tiene citas o cotizaciones asociadas.",
-        });
+      return res.status(400).json({
+        message:
+          "No puedes eliminar este vehículo porque tiene citas o cotizaciones asociadas.",
+      });
     }
     res.status(500).json({ message: "Error al eliminar." });
   }
+};
+
+const consultarPlacaExterna = async (req, res) => {
+  const { placa } = req.body;
+  if (!placa) return res.status(400).json({ message: "La placa es requerida" });
+
+  const datos = await consultarPlacaAPI(placa.trim().toUpperCase());
+  if (!datos)
+    return res
+      .status(404)
+      .json({ message: "No se encontró información para esa placa" });
+
+  res.json(datos);
 };
 
 module.exports = {

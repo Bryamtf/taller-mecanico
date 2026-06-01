@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Package, FileText, ShoppingBag,
-  TrendingUp, ArrowDownLeft, ArrowUpRight, Users,
+  TrendingUp, ArrowDownLeft, ArrowUpRight, Users, UsersRound,
   X, ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ const NAV_SECTIONS = [
     label: 'Principal',
     items: [
       { label: 'Inicio',       icon: LayoutDashboard, to: '/dashboard' },
+      { label: 'Clientes',     icon: UsersRound,      to: '/clientes' },
       { label: 'Citas',        icon: Calendar,        to: '/citas' },
       { label: 'Inventario',   icon: Package,         to: '/inventario' },
       { label: 'Cotizaciones', icon: FileText,        to: '/cotizaciones' },
@@ -63,7 +64,7 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
     >
       {/* Header del sidebar: avatar + info */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-white/10 ${isCollapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-        <div className="shrink-0 w-9 h-9 rounded-full bg-[#C9A227] flex items-center justify-center font-bold text-sm">
+        <div className="shrink-0 w-9 h-9 rounded-full bg-[#e5ba4a] flex items-center justify-center font-bold text-sm">
           {initial}
         </div>
         <div className={`overflow-hidden ${isCollapsed ? 'lg:hidden' : ''}`}>
@@ -95,7 +96,7 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
                 className={({ isActive }) => [
                   'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                   isActive
-                    ? 'text-[#C9A227] bg-white/5'
+                    ? 'text-[#e5ba4a] bg-white/5'
                     : 'text-gray-300 hover:text-white hover:bg-white/5',
                   isCollapsed ? 'lg:justify-center lg:px-0' : '',
                 ].join(' ')}
@@ -105,7 +106,7 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
                   {item.label}
                 </span>
                 {item.badge && (
-                  <span className={`text-[10px] font-bold bg-[#C9A227] text-white rounded-full px-1.5 py-0.5 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                  <span className={`text-[10px] font-bold bg-[#e5ba4a] text-white rounded-full px-1.5 py-0.5 ${isCollapsed ? 'lg:hidden' : ''}`}>
                     {item.badge}
                   </span>
                 )}
