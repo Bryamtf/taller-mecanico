@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine } from 'lucide-react';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
+import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
 import { getImageUrl } from '../services/inventarioService';
 import { swalConfirm, swalSuccess, swalError } from '@/lib/swal';
 
@@ -24,6 +25,7 @@ export default function InventarioPage() {
   const [modalOpen, setModalOpen]       = useState(false);
   const [articuloId, setArticuloId]     = useState(null);
   const [marcasOpen, setMarcasOpen]     = useState(false);
+  const [scannerOpen, setScannerOpen]   = useState(false);
 
   const handleNuevo  = () => { setArticuloId(null); setModalOpen(true); };
   const handleEditar = (id) => { setArticuloId(id); setModalOpen(true); };
@@ -99,7 +101,15 @@ export default function InventarioPage() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#bababa]" />
           <input value={busqueda} onChange={e => handleBusqueda(e.target.value)}
             placeholder="Buscar por nombre, código..."
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 bg-white outline-none focus:border-[#e5ba4a] transition-colors" />
+            className="w-full pl-9 pr-10 py-2 text-sm rounded-lg border border-gray-300 bg-white outline-none focus:border-[#e5ba4a] transition-colors" />
+          <button
+            type="button"
+            onClick={() => setScannerOpen(true)}
+            title="Escanear código de barras"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[#bababa] hover:text-[#e5ba4a] transition-colors"
+          >
+            <ScanLine size={16} />
+          </button>
         </div>
         <select value={filtroTipo} onChange={e => handleFiltro(e.target.value)}
           className="text-sm rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none focus:border-[#e5ba4a] transition-colors">
@@ -202,6 +212,12 @@ export default function InventarioPage() {
       </div>
 
       <GestionMarcasModal open={marcasOpen} onClose={() => setMarcasOpen(false)} />
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => { handleBusqueda(code); setScannerOpen(false); }}
+      />
 
       <ProductoModal
         open={modalOpen}

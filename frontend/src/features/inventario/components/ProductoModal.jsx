@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Plus, Pencil, Trash2, ImagePlus, ArrowUpDown } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, ImagePlus, ArrowUpDown, ScanLine } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
 import AjusteStockModal from './AjusteStockModal';
+import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
 import { swalConfirm, swalError, swalSuccess } from '@/lib/swal';
 import {
   createArticulo, updateArticulo, getMarcas,
@@ -17,7 +18,7 @@ const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
 const errorClass = 'text-xs text-red-500 mt-0.5';
 
 // ─── Tab de Datos ────────────────────────────────────────────────────────────
-function TabDatos({ register, errors }) {
+function TabDatos({ register, errors, onScanBarcode }) {
   return (
     <div className="space-y-4">
       <div>
@@ -30,8 +31,18 @@ function TabDatos({ register, errors }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Código de barras *</label>
-          <input {...register('codigo_barras', { required: 'Requerido' })}
-            placeholder="7708481919566" className={inputClass} />
+          <div className="flex gap-2">
+            <input {...register('codigo_barras', { required: 'Requerido' })}
+              placeholder="7708481919566" className={inputClass} />
+            <button
+              type="button"
+              onClick={onScanBarcode}
+              title="Escanear código de barras"
+              className="shrink-0 flex items-center justify-center w-10 rounded-lg border border-gray-300 text-[#bababa] hover:text-[#e5ba4a] hover:border-[#e5ba4a] transition-colors"
+            >
+              <ScanLine size={16} />
+            </button>
+          </div>
           {errors.codigo_barras && <p className={errorClass}>{errors.codigo_barras.message}</p>}
         </div>
         <div>
@@ -334,6 +345,7 @@ export default function ProductoModal({ open, onClose, onSaved, articuloId }) {
   const [articulo, setArticulo]           = useState(null);
   const [ajusteOpen, setAjusteOpen]       = useState(false);
   const [marcaAjuste, setMarcaAjuste]     = useState(null);
+  const [scannerOpen, setScannerOpen]     = useState(false);
   const [imagenesExistentes, setImagenesExistentes] = useState([]);
   const [imagenesAEliminar, setImagenesAEliminar]   = useState([]);
   const [imagenesNuevas, setImagenesNuevas]         = useState([]);
@@ -427,7 +439,13 @@ export default function ProductoModal({ open, onClose, onSaved, articuloId }) {
           </div>
 
           <div className="p-6">
-            {tab === 'Datos' && <TabDatos register={register} errors={errors} />}
+            {tab === 'Datos' && (
+              <TabDatos
+                register={register}
+                errors={errors}
+                onScanBarcode={() => setScannerOpen(true)}
+              />
+            )}
 
             {tab === 'Marcas' && (
               <TabMarcas
@@ -463,6 +481,12 @@ export default function ProductoModal({ open, onClose, onSaved, articuloId }) {
           </div>
         </form>
       </Modal>
+
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => { setValue('codigo_barras', code); setScannerOpen(false); }}
+      />
 
       <AjusteStockModal
         open={ajusteOpen}
