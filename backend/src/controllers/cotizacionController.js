@@ -19,9 +19,11 @@ const cotizacionController = {
       nombre_modelo,
       kilometraje_momento,
       fecha_vencimiento,
+      fecha_entrega,
       observaciones,
       descuento,
     } = req.body;
+    console.log("Datos recibidos para creación:", req.body);
 
     let detalles = req.body.detalles;
     if (typeof detalles === "string") {
@@ -103,6 +105,7 @@ const cotizacionController = {
           total,
           fecha_emision: new Date().toISOString().split("T")[0],
           fecha_vencimiento,
+          fecha_entrega,
           observaciones,
           numero_cotizacion: numeroCotizacion,
         },
@@ -253,122 +256,71 @@ const cotizacionController = {
   async actualizar(req, res) {
     try {
       const { id } = req.params;
-
-      const cotizacionExistente = await Cotizacion.encontrarPorId(id);
-      if (!cotizacionExistente) {
-        return res.status(404).json({
-          success: false,
-          message: "Cotización no encontrada",
-        });
-      }
-
-      // No permitir editar si está aprobada (opcional según reglas de negocio)
-      if (cotizacionExistente.estado === "aprobada") {
-        return res.status(400).json({
-          success: false,
-          message: "No se puede editar una cotización ya aprobada",
-        });
-      }
-
       const {
         cliente_id,
         vehiculo_id,
-        cita_id,
-        es_modelo,
-        nombre_modelo,
-        kilometraje_momento,
-        detalles,
-        fecha_vencimiento,
         observaciones,
-        descuento_adicional,
+        estado,
+        fecha_entrega,
+        detalles,
       } = req.body;
+      console.log("Datos recibidos para actualización:", req.body);
 
-      // Validar campos obligatorios
-      if (!cliente_id || !vehiculo_id) {
-        return res.status(400).json({
-          success: false,
-          message: "Cliente y vehículo son obligatorios",
-        });
-      }
+      const conn = await pool.getConnection();
 
-      if (!detalles || detalles.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "La cotización debe tener al menos un detalle",
-        });
-      }
-      if (req.body.numero_cotizacion) {
-        console.warn(
-          `Intento de editar numero_cotizacion en cotización ${id} ignorado`,
+      try {
+        await conn.beginTransaction();
+        await Cotizacion.actualizarCotizacion(
+          id,
+          {
+            cliente_id,
+            vehiculo_id,
+            observaciones,
+            estado,
+            fecha_entrega,
+          },
+          conn,
         );
-      }
+        await DetalleCotizacion.eliminarPorCotizacionId(id, conn);
+        for (const detalle of detalles) {
+          await DetalleCotizacion.crear(
+            {
+              cotizacion_id: id,
+              articulo_id: detalle.articulo_id || null,
+              marca_id: detalle.marca_id || null,
+              descripcion_custom: detalle.descripcion_custom,
+              cantidad: detalle.cantidad,
+              precio_unitario: detalle.precio_unitario,
+              descuento: detalle.descuento || 0,
+              subtotal:
+                detalle.cantidad * detalle.precio_unitario -
+                (detalle.descuento || 0),
+              es_servicio: detalle.es_servicio || 0,
+            },
+            conn,
+          );
+        }
+        const cotizacionActualizada = await Cotizacion.encontrarPorId(id);
+        const pdfBuffer = await pdfService.generar(cotizacionActualizada);
+        const pdfPath = await pdfService.guardarArchivo(
+          id,
+          cotizacionActualizada.numero_cotizacion,
+          pdfBuffer,
+        );
+        await Cotizacion.actualizarCotizacion(id, { pdf_path: pdfPath }, conn);
 
-      // Recalcular totales
-      let subtotal = 0;
-      const detallesCalculados = detalles.map((d) => {
-        const subtotalItem =
-          d.cantidad * d.precio_unitario - (d.descuento || 0);
-        subtotal += subtotalItem;
-        return {
-          ...d,
-          subtotal: subtotalItem,
-        };
-      });
+        await conn.commit();
 
-      // Aplicar descuento adicional si existe
-      const descuento = descuento_adicional || 0;
-      const subtotalConDescuento = subtotal - descuento;
-      const igv = subtotalConDescuento * 0.18;
-      const total = subtotalConDescuento + igv;
-
-      // Actualizar encabezado de la cotización
-      const actualizado = await Cotizacion.actualizarCotizacion(id, {
-        cliente_id,
-        vehiculo_id,
-        cita_id: cita_id || null,
-        es_modelo: es_modelo || 0,
-        nombre_modelo: nombre_modelo || null,
-        kilometraje_momento: kilometraje_momento || null,
-        subtotal,
-        descuento,
-        igv,
-        total,
-        fecha_vencimiento: fecha_vencimiento || null,
-        observaciones: observaciones || null,
-      });
-
-      if (!actualizado) {
-        return res.status(500).json({
-          success: false,
-          message: "Error al actualizar la cotización",
+        res.json({
+          success: true,
+          message: "Cotización actualizada exitosamente",
         });
+      } catch (error) {
+        await conn.rollback();
+        throw error;
+      } finally {
+        conn.release();
       }
-
-      // Eliminar detalles antiguos
-      await DetalleCotizacion.eliminarPorCotizacionId(id);
-
-      // Insertar nuevos detalles
-      for (const detalle of detallesCalculados) {
-        await DetalleCotizacion.crear({
-          cotizacion_id: id,
-          articulo_id: detalle.articulo_id || null,
-          marca_id: detalle.marca_id || null,
-          descripcion_custom: detalle.descripcion_custom || null,
-          cantidad: detalle.cantidad,
-          precio_unitario: detalle.precio_unitario,
-          descuento: detalle.descuento || 0,
-          subtotal: detalle.subtotal,
-          es_servicio: detalle.es_servicio || 0,
-        });
-      }
-
-      const cotizacionActualizada = await Cotizacion.encontrarPorId(id);
-
-      res.json({
-        success: true,
-        message: "Cotización actualizada exitosamente",
-        data: cotizacionActualizada,
-      });
     } catch (error) {
       console.error("Error al actualizar cotización:", error);
       res.status(500).json({

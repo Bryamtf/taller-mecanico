@@ -5,11 +5,9 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import ClientesPage   from "@/features/clientes/pages/ClientesPage";
 import InventarioPage from "@/features/inventario/pages/InventarioPage";
 
-// import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
-// import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
-
-// // Agregar esta ruta dentro del MainLayout
-// <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />;
+import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
+import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
+import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
 
 export default function AppRoutes() {
   return (
@@ -32,8 +30,13 @@ export default function AppRoutes() {
             path="/inventario"
             element={<InventarioPage />}
           />
-          {/* <Route path="/cotizaciones" element={<ListaCotizaciones />} />
-          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} /> */}
+          <Route path="/cotizaciones" element={<ListaCotizaciones />} />
+          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} /> 
+          <Route
+            path="/cotizaciones/:id/editar"
+            element={<EditarCotizacion />}
+          />
+
           <Route
             path="/ventas"
             element={<div className="text-xl font-semibold">Ventas</div>}
