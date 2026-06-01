@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const clienteController = require('../controllers/clienteController');
 
-// Ruta para el autocompletado mientras el admin escribe (Debe ir primero)
-// Endpoint: GET /api/clientes/buscar?q=termino
+// Buscar debe ir antes de /:id para evitar conflicto de rutas
 router.get('/buscar', clienteController.buscarClientes);
 
-// Ruta para guardar un nuevo cliente (y su carro) desde el formulario
-// Endpoint: POST /api/clientes
-router.post('/', clienteController.crearCliente);
+router.get('/',     clienteController.listarClientes);
+router.get('/:id',  clienteController.obtenerCliente);
+router.post('/',    clienteController.crearCliente);
+router.put('/:id',  clienteController.actualizarCliente);
+router.patch('/:id/estado', clienteController.cambiarEstadoCliente);
 
 module.exports = router;
