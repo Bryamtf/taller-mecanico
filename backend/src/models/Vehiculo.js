@@ -50,4 +50,12 @@ const eliminar = async (id) => {
     return result.affectedRows > 0;
 };
 
-module.exports = { obtenerTodos, obtenerPorId, crear, actualizar, eliminar };
+const buscarPorCliente = async (cliente_id) => {
+    const [rows] = await pool.query(
+        `SELECT * FROM Vehiculo WHERE cliente_id = ? ORDER BY fecha_registro DESC`,
+        [cliente_id]
+    );
+    return rows;
+};
+
+module.exports = { obtenerTodos, obtenerPorId, crear, actualizar, eliminar, buscarPorCliente };
