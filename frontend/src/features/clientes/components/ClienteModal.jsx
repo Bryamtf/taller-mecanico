@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, Loader } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
+import { consultarPlaca } from '../services/vehiculoService';
+import { swalError } from '@/lib/swal';
 
 const COMBUSTIBLES = ['gasolina', 'diesel', 'GLP', 'GNV', 'electrico', 'hibrido'];
 
@@ -12,9 +14,11 @@ const errorClass = 'text-xs text-red-500 mt-0.5';
 export default function ClienteModal({ open, onClose, onSave, cliente }) {
   const isEdit = !!cliente;
   const [showVehiculo, setShowVehiculo] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [buscandoPlaca, setBuscandoPlaca] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
+  const placaValue = watch('placa', '');
 
   useEffect(() => {
     if (open) {
@@ -22,6 +26,29 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
       setShowVehiculo(false);
     }
   }, [open, cliente, reset]);
+
+  const handleConsultarPlaca = async () => {
+    const placa = placaValue?.trim();
+    if (!placa || placa.length < 4) {
+      swalError('Placa inválida', 'Ingresa una placa válida antes de consultar.');
+      return;
+    }
+    setBuscandoPlaca(true);
+    try {
+      const data = await consultarPlaca(placa.toUpperCase());
+      if (data.marca)    setValue('marca',   data.marca);
+      if (data.modelo)   setValue('modelo',  data.modelo);
+      if (data.año)      setValue('anio',    data.año);
+      if (data.color)    setValue('color',   data.color);
+    } catch (err) {
+      const msg = err.response?.status === 404
+        ? 'No se encontró información para esa placa.'
+        : 'No se pudo consultar la placa. Ingresa los datos manualmente.';
+      swalError('Sin resultados', msg);
+    } finally {
+      setBuscandoPlaca(false);
+    }
+  };
 
   const onSubmit = async (data) => {
     setSaving(true);
@@ -38,12 +65,12 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
       if (!isEdit && showVehiculo && data.placa?.trim()) {
         payload.vehiculo = {
           placa:              data.placa.trim().toUpperCase(),
-          marca:              data.marca?.trim()              || null,
-          modelo:             data.modelo?.trim()             || null,
-          anio:               data.anio                       || null,
-          color:              data.color?.trim()              || null,
-          tipo_combustible:   data.tipo_combustible           || null,
-          kilometraje_actual: data.kilometraje_actual         || null,
+          marca:              data.marca?.trim()            || null,
+          modelo:             data.modelo?.trim()           || null,
+          anio:               data.anio                     || null,
+          color:              data.color?.trim()            || null,
+          tipo_combustible:   data.tipo_combustible         || null,
+          kilometraje_actual: data.kilometraje_actual       || null,
         };
       }
 
@@ -135,31 +162,46 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
 
             {showVehiculo && (
               <div className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClass}>Placa *</label>
+
+                {/* Placa con botón consultar */}
+                <div>
+                  <label className={labelClass}>Placa *</label>
+                  <div className="flex gap-2">
                     <input
                       {...register('placa', {
                         required: showVehiculo ? 'Requerida si agrega vehículo' : false,
                         pattern: { value: /^[A-Z0-9-]{4,8}$/i, message: 'Formato inválido' },
+                        onChange: (e) => { e.target.value = e.target.value.toUpperCase(); },
                       })}
                       placeholder="ABC-123"
                       className={inputClass}
-                      onChange={(e) => { e.target.value = e.target.value.toUpperCase(); }}
                     />
-                    {errors.placa && <p className={errorClass}>{errors.placa.message}</p>}
+                    <button
+                      type="button"
+                      onClick={handleConsultarPlaca}
+                      disabled={buscandoPlaca}
+                      title="Consultar datos del vehículo por placa"
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white hover:bg-[#d4a93a] disabled:opacity-60 transition-colors"
+                    >
+                      {buscandoPlaca ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
+                      {buscandoPlaca ? 'Buscando...' : 'Consultar'}
+                    </button>
                   </div>
-                  <div>
-                    <label className={labelClass}>Marca</label>
-                    <input {...register('marca')} placeholder="Toyota" className={inputClass} />
-                  </div>
+                  {errors.placa && <p className={errorClass}>{errors.placa.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className={labelClass}>Marca</label>
+                    <input {...register('marca')} placeholder="Toyota" className={inputClass} />
+                  </div>
+                  <div>
                     <label className={labelClass}>Modelo</label>
                     <input {...register('modelo')} placeholder="Corolla" className={inputClass} />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Año</label>
                     <input
@@ -173,9 +215,6 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
                     />
                     {errors.anio && <p className={errorClass}>{errors.anio.message}</p>}
                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className={labelClass}>Color</label>
                     <input {...register('color')} placeholder="Blanco" className={inputClass} />
@@ -187,16 +226,17 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
                       {COMBUSTIBLES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className={labelClass}>Kilometraje</label>
-                    <input
-                      {...register('kilometraje_actual', { min: { value: 0, message: 'Inválido' } })}
-                      type="number"
-                      placeholder="50000"
-                      className={inputClass}
-                    />
-                    {errors.kilometraje_actual && <p className={errorClass}>{errors.kilometraje_actual.message}</p>}
-                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Kilometraje actual</label>
+                  <input
+                    {...register('kilometraje_actual', { min: { value: 0, message: 'Inválido' } })}
+                    type="number"
+                    placeholder="50000"
+                    className={inputClass}
+                  />
+                  {errors.kilometraje_actual && <p className={errorClass}>{errors.kilometraje_actual.message}</p>}
                 </div>
               </div>
             )}
@@ -204,7 +244,11 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
         )}
 
         <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
             Cancelar
           </button>
           <button
