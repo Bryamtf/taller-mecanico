@@ -15,7 +15,7 @@ export default function ClientesPage() {
     clientes, total, totalPaginas, pagina, setPagina,
     busqueda, handleBusqueda,
     filtroActivo, handleFiltro,
-    loading, crear, actualizar, toggleEstado,
+    loading, fetchClientes, crear, actualizar, toggleEstado,
   } = useClientes();
 
   const [modalOpen, setModalOpen]       = useState(false);
@@ -205,6 +205,7 @@ export default function ClientesPage() {
         clienteId={clienteDetId}
         onClose={() => setDetalleOpen(false)}
         onEditar={handleEditar}
+        onDataChanged={fetchClientes}
       />
     </div>
   );
