@@ -18,8 +18,9 @@ router.delete('/:id',         auth, canEdit, articuloController.eliminarArticulo
 router.patch('/:id/reactivar', auth, canEdit, articuloController.reactivarArticulo);
 
 // Gestión de marcas por artículo
-router.post('/:id/marcas',              auth, canEdit, articuloController.agregarMarca);
-router.put('/:id/marcas/:marca_id',     auth, canEdit, articuloController.actualizarMarca);
-router.delete('/:id/marcas/:marca_id',  auth, canEdit, articuloController.eliminarMarca);
+router.post('/:id/marcas',                        auth, canEdit, articuloController.agregarMarca);
+router.put('/:id/marcas/:marca_id',               auth, canEdit, articuloController.actualizarMarca);
+router.delete('/:id/marcas/:marca_id',            auth, canEdit, articuloController.eliminarMarca);
+router.post('/:id/marcas/:marca_id/ajuste',       auth, canEdit, articuloController.ajustarStock);
 
 module.exports = router;

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Plus, Pencil, Trash2, ImagePlus } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, ImagePlus, ArrowUpDown } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
+import AjusteStockModal from './AjusteStockModal';
 import { swalConfirm, swalError, swalSuccess } from '@/lib/swal';
 import {
   createArticulo, updateArticulo, getMarcas,
@@ -82,7 +83,7 @@ function TabDatos({ register, errors }) {
 }
 
 // ─── Tab de Marcas ────────────────────────────────────────────────────────────
-function TabMarcas({ articuloId, marcas, onRefresh, isEdit, onMarcaInicialChange }) {
+function TabMarcas({ articuloId, marcas, onRefresh, isEdit, onMarcaInicialChange, onAjustarStock }) {
   const [listaMarcas, setListaMarcas]     = useState([]);
   const [editando, setEditando]           = useState(null); // marca_id en edición
   const [agregando, setAgregando]         = useState(false);
@@ -214,6 +215,7 @@ function TabMarcas({ articuloId, marcas, onRefresh, isEdit, onMarcaInicialChange
                 </p>
               </div>
               <div className="flex gap-1">
+                <button type="button" onClick={() => onAjustarStock(m)} title="Ajustar stock" className="p-1.5 rounded text-gray-400 hover:text-[#e5ba4a] hover:bg-amber-50 transition-colors"><ArrowUpDown size={13} /></button>
                 <button type="button" onClick={() => startEdit(m)} className="p-1.5 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"><Pencil size={13} /></button>
                 <button type="button" onClick={() => handleDelete(m.marca_id, m.marca_nombre)} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={13} /></button>
               </div>
@@ -335,6 +337,8 @@ export default function ProductoModal({ open, onClose, onSaved, articuloId }) {
   const [tab, setTab]                     = useState('Datos');
   const [saving, setSaving]               = useState(false);
   const [articulo, setArticulo]           = useState(null);
+  const [ajusteOpen, setAjusteOpen]       = useState(false);
+  const [marcaAjuste, setMarcaAjuste]     = useState(null);
   const [imagenesExistentes, setImagenesExistentes] = useState([]);
   const [imagenesAEliminar, setImagenesAEliminar]   = useState([]);
   const [imagenesNuevas, setImagenesNuevas]         = useState([]);
@@ -415,53 +419,68 @@ export default function ProductoModal({ open, onClose, onSaved, articuloId }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar producto' : 'Nuevo producto'} size="lg">
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 px-6">
-          {tabs.map(t => (
-            <button key={t} type="button" onClick={() => setTab(t)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-[#e5ba4a] text-[#e5ba4a]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {t}
+    <>
+      <Modal open={open} onClose={onClose} title={isEdit ? 'Editar producto' : 'Nuevo producto'} size="lg">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="flex border-b border-gray-200 px-6">
+            {tabs.map(t => (
+              <button key={t} type="button" onClick={() => setTab(t)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-[#e5ba4a] text-[#e5ba4a]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            {tab === 'Datos' && <TabDatos register={register} errors={errors} />}
+
+            {tab === 'Marcas' && (
+              <TabMarcas
+                articuloId={articuloId}
+                marcas={articulo?.marcas || []}
+                onRefresh={handleRefreshMarcas}
+                isEdit={isEdit}
+                onMarcaInicialChange={setMarcaInicial}
+                onAjustarStock={(m) => { setMarcaAjuste(m); setAjusteOpen(true); }}
+              />
+            )}
+
+            {tab === 'Imágenes' && (
+              <TabImagenes
+                imagenesExistentes={imagenesExistentes}
+                onEliminarExistente={handleEliminarExistente}
+                imagenesNuevas={imagenesNuevas}
+                onAgregarNuevas={(files) => setImagenesNuevas(prev => [...prev, ...files])}
+                onQuitarNueva={(i) => setImagenesNuevas(prev => prev.filter((_, idx) => idx !== i))}
+              />
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 px-6 pb-6">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+              Cancelar
             </button>
-          ))}
-        </div>
+            <button type="submit" disabled={saving}
+              className="px-4 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white font-medium hover:bg-[#d4a93a] disabled:opacity-60 transition-colors">
+              {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar producto'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
-        <div className="p-6">
-          {tab === 'Datos' && <TabDatos register={register} errors={errors} />}
-
-          {tab === 'Marcas' && (
-            <TabMarcas
-              articuloId={articuloId}
-              marcas={articulo?.marcas || []}
-              onRefresh={handleRefreshMarcas}
-              isEdit={isEdit}
-              onMarcaInicialChange={setMarcaInicial}
-            />
-          )}
-
-          {tab === 'Imágenes' && (
-            <TabImagenes
-              imagenesExistentes={imagenesExistentes}
-              onEliminarExistente={handleEliminarExistente}
-              imagenesNuevas={imagenesNuevas}
-              onAgregarNuevas={(files) => setImagenesNuevas(prev => [...prev, ...files])}
-              onQuitarNueva={(i) => setImagenesNuevas(prev => prev.filter((_, idx) => idx !== i))}
-            />
-          )}
-        </div>
-
-        <div className="flex justify-end gap-3 px-6 pb-6">
-          <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={saving}
-            className="px-4 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white font-medium hover:bg-[#d4a93a] disabled:opacity-60 transition-colors">
-            {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar producto'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+      <AjusteStockModal
+        open={ajusteOpen}
+        onClose={() => { setAjusteOpen(false); setMarcaAjuste(null); }}
+        onSaved={async () => {
+          setAjusteOpen(false);
+          setMarcaAjuste(null);
+          await handleRefreshMarcas();
+          swalSuccess('Stock actualizado', 'El ajuste fue registrado correctamente.');
+        }}
+        articuloId={articuloId}
+        marca={marcaAjuste}
+      />
+    </>
   );
 }

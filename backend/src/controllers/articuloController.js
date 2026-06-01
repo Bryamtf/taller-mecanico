@@ -1,6 +1,7 @@
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 const Articulo = require('../models/Articulo');
+const pool     = require('../config/database');
 
 const crearNuevoArticulo = async (req, res) => {
     try {
@@ -267,4 +268,68 @@ const eliminarMarca = async (req, res) => {
     }
 };
 
-module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes, agregarMarca, actualizarMarca, eliminarMarca };
+const ajustarStock = async (req, res) => {
+    const { id, marca_id } = req.params;
+    const { tipo_movimiento, cantidad, motivo } = req.body;
+
+    const cantidadNum = parseInt(cantidad, 10);
+    if (!tipo_movimiento || !cantidadNum || cantidadNum <= 0) {
+        return res.status(400).json({ message: 'tipo_movimiento y cantidad (> 0) son requeridos' });
+    }
+    if (!['entrada', 'salida', 'ajuste'].includes(tipo_movimiento)) {
+        return res.status(400).json({ message: 'tipo_movimiento debe ser entrada, salida o ajuste' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const [rows] = await connection.query(
+            `SELECT stock_actual FROM Articulo_Marca_Precio WHERE articulo_id = ? AND marca_id = ?`,
+            [id, marca_id]
+        );
+        if (!rows.length) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+        }
+
+        const stockAnterior = rows[0].stock_actual;
+        let nuevoStock;
+
+        if (tipo_movimiento === 'entrada') {
+            nuevoStock = stockAnterior + cantidadNum;
+        } else if (tipo_movimiento === 'salida') {
+            if (stockAnterior < cantidadNum) {
+                await connection.rollback();
+                return res.status(400).json({ message: `Stock insuficiente. Stock actual: ${stockAnterior}` });
+            }
+            nuevoStock = stockAnterior - cantidadNum;
+        } else {
+            // ajuste: cantidad es el nuevo valor absoluto
+            nuevoStock = cantidadNum;
+        }
+
+        await connection.query(
+            `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+            [nuevoStock, id, marca_id]
+        );
+
+        await connection.query(
+            `INSERT INTO Movimiento_inventario (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, registrado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, marca_id, tipo_movimiento, cantidadNum, stockAnterior, nuevoStock, motivo || null, req.user?.username || null]
+        );
+
+        await connection.commit();
+        res.json({ message: 'Stock ajustado correctamente', stock_anterior: stockAnterior, stock_nuevo: nuevoStock });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error en ajustarStock:', error);
+        res.status(500).json({ message: 'Error al ajustar el stock' });
+    } finally {
+        connection.release();
+    }
+};
+
+module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes, agregarMarca, actualizarMarca, eliminarMarca, ajustarStock };

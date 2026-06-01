@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag } from 'lucide-react';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
+import GestionMarcasModal from '../components/GestionMarcasModal';
 import { getImageUrl } from '../services/inventarioService';
 import { swalConfirm, swalSuccess, swalError } from '@/lib/swal';
 
@@ -20,8 +21,9 @@ export default function InventarioPage() {
     loading, fetchInventario, eliminar, reactivar,
   } = useInventario();
 
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [articuloId, setArticuloId] = useState(null);
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [articuloId, setArticuloId]     = useState(null);
+  const [marcasOpen, setMarcasOpen]     = useState(false);
 
   const handleNuevo  = () => { setArticuloId(null); setModalOpen(true); };
   const handleEditar = (id) => { setArticuloId(id); setModalOpen(true); };
@@ -55,10 +57,16 @@ export default function InventarioPage() {
           <h1 className="text-xl font-semibold text-gray-800">Inventario</h1>
           <p className="text-sm text-[#bababa]">{total} producto{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={handleNuevo}
-          className="flex items-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-          <Plus size={16} /> Nuevo producto
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setMarcasOpen(true)}
+            className="flex items-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <Tag size={16} /> Gestionar marcas
+          </button>
+          <button onClick={handleNuevo}
+            className="flex items-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <Plus size={16} /> Nuevo producto
+          </button>
+        </div>
       </div>
 
       {/* Tarjetas resumen */}
@@ -190,6 +198,8 @@ export default function InventarioPage() {
           </div>
         )}
       </div>
+
+      <GestionMarcasModal open={marcasOpen} onClose={() => setMarcasOpen(false)} />
 
       <ProductoModal
         open={modalOpen}
