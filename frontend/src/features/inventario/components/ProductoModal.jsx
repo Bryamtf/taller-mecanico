@@ -65,12 +65,7 @@ function TabDatos({ register, errors }) {
           <input {...register('stock_minimo', { min: { value: 0, message: 'Inválido' } })}
             type="number" placeholder="0" className={inputClass} />
           {errors.stock_minimo && <p className={errorClass}>{errors.stock_minimo.message}</p>}
-        </div>
-        <div>
-          <label className={labelClass}>Alerta stock</label>
-          <input {...register('alerta_stock', { min: { value: 0, message: 'Inválido' } })}
-            type="number" placeholder="5" className={inputClass} />
-          {errors.alerta_stock && <p className={errorClass}>{errors.alerta_stock.message}</p>}
+          <p className="text-xs text-gray-400 mt-0.5">La alerta se activa cuando el stock cae por debajo de este valor</p>
         </div>
       </div>
 

@@ -320,6 +320,15 @@ const ajustarStock = async (req, res) => {
             [id, marca_id, tipo_movimiento, cantidadNum, stockAnterior, nuevoStock, motivo || null, req.user?.username || null]
         );
 
+        // Actualiza alerta_stock automáticamente según si alguna marca está por debajo del mínimo
+        await connection.query(
+            `UPDATE Articulos SET alerta_stock = (
+                SELECT CASE WHEN MIN(amp.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+                FROM Articulo_Marca_Precio amp WHERE amp.articulo_id = ?
+             ) WHERE articulo_id = ?`,
+            [id, id]
+        );
+
         await connection.commit();
         res.json({ message: 'Stock ajustado correctamente', stock_anterior: stockAnterior, stock_nuevo: nuevoStock });
 
