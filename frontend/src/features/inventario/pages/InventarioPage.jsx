@@ -45,8 +45,10 @@ export default function InventarioPage() {
   };
 
   const formatPrecio = (p) => {
-    if (!p.marcas_count && !p.precio_min) return '—';
-    return `S/ ${Number(p.precio_min || 0).toFixed(2)}`;
+    if (!p.precio_min && p.precio_min !== 0) return '—';
+    const min = Number(p.precio_min).toFixed(2);
+    const max = Number(p.precio_max).toFixed(2);
+    return min === max ? `S/ ${min}` : `S/ ${min} – S/ ${max}`;
   };
 
   return (

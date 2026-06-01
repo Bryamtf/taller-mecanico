@@ -22,6 +22,8 @@ const Inventario = {
           a.tipo, a.unidad_medida, a.stock_minimo, a.activo,
           COALESCE(SUM(amp.stock_actual), 0)        AS stock_total,
           COUNT(DISTINCT amp.marca_id)              AS total_marcas,
+          MIN(amp.precio_venta)                     AS precio_min,
+          MAX(amp.precio_venta)                     AS precio_max,
           GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS marcas,
           (SELECT img.ruta_archivo FROM Imagenes img
            WHERE img.articulo_id = a.articulo_id AND img.tipo = 'articulo'
