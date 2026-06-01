@@ -2,9 +2,11 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Package, FileText, ShoppingBag,
   TrendingUp, ArrowDownLeft, ArrowUpRight, Users,
-  X, ChevronLeft, ChevronRight,
+  X, ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/contexts/AuthContext';
+import { swalConfirm } from '@/lib/swal';
 
 const NAV_SECTIONS = [
   {
@@ -34,8 +36,17 @@ const NAV_SECTIONS = [
 ];
 
 export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCollapse }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const initial = user?.username?.[0]?.toUpperCase() ?? 'A';
+
+  const handleLogout = async () => {
+    const result = await swalConfirm('¿Cerrar sesión?', '¿Estás seguro de que deseas salir?');
+    if (result.isConfirmed) {
+      logout();
+      navigate('/login', { replace: true });
+    }
+  };
 
   return (
     <aside
@@ -103,6 +114,19 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
           </div>
         ))}
       </nav>
+
+      {/* Botón cerrar sesión */}
+      <button
+        onClick={handleLogout}
+        title={isCollapsed ? 'Cerrar sesión' : undefined}
+        className={[
+          'flex items-center gap-3 px-4 py-3 text-sm text-gray-400 hover:text-red-400 transition-colors border-t border-white/10',
+          isCollapsed ? 'lg:justify-center lg:px-0' : '',
+        ].join(' ')}
+      >
+        <LogOut size={18} className="shrink-0" />
+        <span className={isCollapsed ? 'lg:hidden' : ''}>Cerrar sesión</span>
+      </button>
 
       {/* Botón colapsar — solo desktop */}
       <button
