@@ -143,4 +143,5 @@ module.exports = {
   obtenerVehiculo,
   actualizarVehiculo,
   eliminarVehiculo,
+  consultarPlacaExterna
 };
