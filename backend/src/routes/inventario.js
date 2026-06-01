@@ -1,13 +1,35 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const inventarioController = require('../controllers/inventarioController');
-const { authMiddleware, checkPermiso } = require('../middleware/authMiddleware');
+const inventarioController = require("../controllers/inventarioController");
+const {
+  authMiddleware,
+  checkPermiso,
+} = require("../middleware/authMiddleware");
 
-// 1. Ruta GET para el listado general (Protegida)
-router.get('/', 
-    authMiddleware, 
-    checkPermiso('ver_inventario'), 
-    inventarioController.obtenerInventario
+router.use(authMiddleware);
+
+router.get(
+  "/",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerInventario,
+);
+
+router.get(
+  "/articulos",
+  checkPermiso("ver_inventario"),
+  inventarioController.listarArticulos,
+);
+
+router.get(
+  "/articulos/buscar",
+  checkPermiso("ver_inventario"),
+  inventarioController.buscarArticulos,
+);
+
+router.get(
+  "/articulos/:id",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerArticulo,
 );
 
 module.exports = router;
