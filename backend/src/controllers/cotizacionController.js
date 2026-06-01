@@ -1,96 +1,210 @@
 const Cotizacion = require("../models/Cotizacion");
+const Cliente = require("../models/Cliente");
+const Vehiculo = require("../models/Vehiculo");
 const DetalleCotizacion = require("../models/DetalleCotizacion");
 const pdfService = require("../services/pdfService");
 const sharingService = require("../services/sharingService");
+const generarNumeroCotizacion = require("../utils/generarNumeroCotizacion");
+const pool = require("../config/database");
+const imagenService = require("../services/imagenService");
+const { uploadImagenesCotizacion } = require("../middleware/uploadMiddleware");
 
 const cotizacionController = {
   async crear(req, res) {
-    try {
-      const {
-        cliente_id,
-        vehiculo_id,
-        cita_id,
-        es_modelo,
-        nombre_modelo,
-        kilometraje_momento,
-        detalles,
-        fecha_vencimiento,
-        observaciones,
-      } = req.body;
+    const {
+      cliente_id,
+      vehiculo_id,
+      cita_id,
+      es_modelo,
+      nombre_modelo,
+      kilometraje_momento,
+      fecha_vencimiento,
+      observaciones,
+      descuento,
+    } = req.body;
 
-      if (!cliente_id) {
+    let detalles = req.body.detalles;
+    if (typeof detalles === "string") {
+      try {
+        detalles = JSON.parse(detalles);
+      } catch {
         return res.status(400).json({
           success: false,
-          message: "Elegir cliente es obligatorio",
+          message: "Formato de detalles inválido",
         });
       }
-
-      if (!vehiculo_id) {
-        return res.status(400).json({
-          success: false,
-          message: "Elegir vehiculo es obligatorio",
-        });
-      }
-
-      if (!detalles || detalles.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "La cotizacion debe tener al menos un detalle",
-        });
-      }
-
-      let subtotal = 0;
-      const detallesCalc = detalles.map((d) => {
-        const subtotalItem =
-          d.cantidad * d.precio_unitario - (d.descuento || 0);
-        subtotal += subtotalItem;
-        return { ...d, subtotal: subtotalItem };
+    }
+    // Validaciones iniciales
+    if (!cliente_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Elegir cliente es obligatorio" });
+    }
+    if (!vehiculo_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Elegir vehiculo es obligatorio" });
+    }
+    if (!detalles || detalles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "La cotizacion debe tener al menos un detalle",
       });
+    }
 
-      const igv = subtotal * 0.18;
-      const total = subtotal + igv;
-      const cotizacionId = await Cotizacion.crear({
+    // Validar imágenes
+    const imagenes = req.files || [];
+    if (imagenes.length > 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Máximo 10 imágenes por cotización",
+      });
+    }
+
+    let numeroCotizacion;
+    try {
+      numeroCotizacion = await generarNumeroCotizacion();
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error al generar el número de cotización",
+        error: error.message,
+      });
+    }
+
+    let subtotal = 0;
+    const detallesCalc = detalles.map((d) => {
+      const subtotalItem = d.cantidad * d.precio_unitario - (d.descuento || 0);
+      subtotal += subtotalItem;
+      return { ...d, subtotal: subtotalItem };
+    });
+
+    const igv = subtotal * 0.18;
+    const total = subtotal + igv;
+
+    let cotizacionId = null;
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      cotizacionId = await Cotizacion.crear(
+        {
+          cliente_id,
+          vehiculo_id,
+          cita_id: cita_id || null,
+          creado_por: req.user.username,
+          es_modelo: es_modelo || 0,
+          nombre_modelo: nombre_modelo || null,
+          kilometraje_momento,
+          subtotal,
+          descuento: descuento ?? 0,
+          igv,
+          total,
+          fecha_emision: new Date().toISOString().split("T")[0],
+          fecha_vencimiento,
+          observaciones,
+          numero_cotizacion: numeroCotizacion,
+        },
+        conn,
+      );
+
+      for (const detalle of detallesCalc) {
+        await DetalleCotizacion.crear(
+          {
+            cotizacion_id: cotizacionId,
+            articulo_id: detalle.articulo_id || null,
+            marca_id: detalle.marca_id || null,
+            descripcion_custom: detalle.descripcion_custom || null,
+            cantidad: detalle.cantidad,
+            precio_unitario: detalle.precio_unitario,
+            descuento: detalle.descuento || 0,
+            subtotal: detalle.subtotal,
+            es_servicio: detalle.es_servicio || 0,
+          },
+          conn,
+        );
+      }
+
+      // Procesar imágenes (si hay)
+      let imagenesGuardadas = [];
+      if (imagenes.length > 0) {
+        imagenesGuardadas = await imagenService.procesarImagenes(
+          imagenes,
+          cotizacionId,
+          req.user.username,
+          conn,
+        );
+      }
+
+      const cliente = await Cliente.buscarPorId(cliente_id);
+      const vehiculo = await Vehiculo.obtenerPorId(vehiculo_id);
+      // Generar y guardar PDF
+      const cotizacionParaPDF = {
+        cotizacion_id: cotizacionId,
+        numero_cotizacion: numeroCotizacion,
         cliente_id,
+        cliente_nombre: cliente.nombres + " " + cliente.apellidos,
+        dni_ruc: cliente.dni_ruc,
+        telefono: cliente.telefono,
+        email: cliente.email,
         vehiculo_id,
-        cita_id: cita_id || null,
-        creado_por: req.user.username,
-        es_modelo: es_modelo || 0,
-        nombre_modelo: nombre_modelo || null,
-        kilometraje_momento,
+        placa: vehiculo.placa,
+        marca: vehiculo.marca,
+        modelo: vehiculo.modelo,
+        color: vehiculo.color,
+        kilometraje_momento: kilometraje_momento || null,
+        //vehiculo_año: vehiculo.año,
         subtotal,
-        descuento: 0,
         igv,
         total,
+        descuento: descuento ?? 0,
         fecha_emision: new Date().toISOString().split("T")[0],
         fecha_vencimiento,
         observaciones,
-      });
-      for (const detalle of detallesCalc) {
-        await DetalleCotizacion.crear({
-          cotizacion_id: cotizacionId,
-          articulo_id: detalle.articulo_id || null,
-          marca_id: detalle.marca_id || null,
-          descripcion_custom: detalle.descripcion_custom || null,
-          cantidad: detalle.cantidad,
-          precio_unitario: detalle.precio_unitario,
-          descuento: detalle.descuento || 0,
-          subtotal: detalle.subtotal,
-          es_servicio: detalle.es_servicio || 0,
-        });
-      }
+        detalles: detallesCalc,
+        estado: "borrador",
+      };
+      const pdfBuffer = await pdfService.generar(cotizacionParaPDF);
+      const pdfPath = await pdfService.guardarArchivo(
+        cotizacionId,
+        numeroCotizacion,
+        pdfBuffer,
+      );
+
+      await Cotizacion.actualizarCotizacion(
+        cotizacionId,
+        { pdf_path: pdfPath },
+        conn,
+      );
+
+      await conn.commit();
+
       const nuevaCotizacion = await Cotizacion.encontrarPorId(cotizacionId);
       res.status(201).json({
         success: true,
         message: "Cotización creada exitosamente",
-        data: nuevaCotizacion,
+        data: {
+          ...nuevaCotizacion,
+          imagenes: imagenesGuardadas,
+          pdf_path: pdfPath,
+        },
       });
     } catch (error) {
+      await conn.rollback();
+
+      if (cotizacionId) {
+        imagenService.eliminarCarpetaImagenes(cotizacionId);
+      }
+
       console.error("Error al crear cotización:", error);
       res.status(500).json({
         success: false,
         message: "Error al crear la cotización",
         error: error.message,
       });
+    } finally {
+      conn.release();
     }
   },
   async listar(req, res) {
@@ -182,6 +296,11 @@ const cotizacionController = {
           success: false,
           message: "La cotización debe tener al menos un detalle",
         });
+      }
+      if (req.body.numero_cotizacion) {
+        console.warn(
+          `Intento de editar numero_cotizacion en cotización ${id} ignorado`,
+        );
       }
 
       // Recalcular totales
@@ -542,6 +661,10 @@ const cotizacionController = {
       }
 
       let cotizacion = await Cotizacion.encontrarPorId(id);
+      cotizacion.total = parseFloat(cotizacion.total) || 0;
+      cotizacion.subtotal = parseFloat(cotizacion.subtotal) || 0;
+      cotizacion.igv = parseFloat(cotizacion.igv) || 0;
+      cotizacion.descuento = parseFloat(cotizacion.descuento) || 0;
 
       if (!cotizacion) {
         return res.status(404).json({
