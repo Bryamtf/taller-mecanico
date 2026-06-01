@@ -1,6 +1,7 @@
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 const Articulo = require('../models/Articulo');
+const pool     = require('../config/database');
 
 const crearNuevoArticulo = async (req, res) => {
     try {
@@ -54,7 +55,11 @@ const editarArticulo = async (req, res) => {
         // 1. Capturar IDs de imágenes a eliminar (El frontend enviará un texto como "[1, 5]")
         let imagenes_a_eliminar = [];
         if (datosArticulo.imagenes_a_eliminar) {
-            imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
+            try {
+                imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
+            } catch {
+                return res.status(400).json({ message: 'Formato inválido en imagenes_a_eliminar' });
+            }
         }
 
         // 2. Procesar las imágenes NUEVAS que entraron por Multer
@@ -216,4 +221,124 @@ const cambiarOrdenImagenes = async (req, res) => {
     }
 };
 
-module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes };
+const agregarMarca = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { marca_id, precio_venta, precio_costo, stock_actual } = req.body;
+
+        if (!marca_id) return res.status(400).json({ message: 'La marca es requerida' });
+
+        await Articulo.agregarMarca(id, { marca_id, precio_venta, precio_costo, stock_actual });
+        res.status(201).json({ message: 'Marca agregada al artículo correctamente' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'Esta marca ya está registrada para este artículo' });
+        }
+        console.error('Error en agregarMarca:', error);
+        res.status(500).json({ message: 'Error al agregar la marca' });
+    }
+};
+
+const actualizarMarca = async (req, res) => {
+    try {
+        const { id, marca_id } = req.params;
+        const { precio_venta, precio_costo, stock_actual } = req.body;
+
+        const actualizado = await Articulo.actualizarMarca(id, marca_id, { precio_venta, precio_costo, stock_actual });
+        if (!actualizado) return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+
+        res.json({ message: 'Marca actualizada correctamente' });
+    } catch (error) {
+        console.error('Error en actualizarMarca:', error);
+        res.status(500).json({ message: 'Error al actualizar la marca' });
+    }
+};
+
+const eliminarMarca = async (req, res) => {
+    try {
+        const { id, marca_id } = req.params;
+
+        const eliminado = await Articulo.eliminarMarca(id, marca_id);
+        if (!eliminado) return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+
+        res.json({ message: 'Marca eliminada del artículo correctamente' });
+    } catch (error) {
+        console.error('Error en eliminarMarca:', error);
+        res.status(500).json({ message: 'Error al eliminar la marca' });
+    }
+};
+
+const ajustarStock = async (req, res) => {
+    const { id, marca_id } = req.params;
+    const { tipo_movimiento, cantidad, motivo } = req.body;
+
+    const cantidadNum = parseInt(cantidad, 10);
+    if (!tipo_movimiento || !cantidadNum || cantidadNum <= 0) {
+        return res.status(400).json({ message: 'tipo_movimiento y cantidad (> 0) son requeridos' });
+    }
+    if (!['entrada', 'salida', 'ajuste'].includes(tipo_movimiento)) {
+        return res.status(400).json({ message: 'tipo_movimiento debe ser entrada, salida o ajuste' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const [rows] = await connection.query(
+            `SELECT stock_actual FROM Articulo_Marca_Precio WHERE articulo_id = ? AND marca_id = ?`,
+            [id, marca_id]
+        );
+        if (!rows.length) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+        }
+
+        const stockAnterior = rows[0].stock_actual;
+        let nuevoStock;
+
+        if (tipo_movimiento === 'entrada') {
+            nuevoStock = stockAnterior + cantidadNum;
+        } else if (tipo_movimiento === 'salida') {
+            if (stockAnterior < cantidadNum) {
+                await connection.rollback();
+                return res.status(400).json({ message: `Stock insuficiente. Stock actual: ${stockAnterior}` });
+            }
+            nuevoStock = stockAnterior - cantidadNum;
+        } else {
+            // ajuste: cantidad es el nuevo valor absoluto
+            nuevoStock = cantidadNum;
+        }
+
+        await connection.query(
+            `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+            [nuevoStock, id, marca_id]
+        );
+
+        await connection.query(
+            `INSERT INTO Movimiento_inventario (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, registrado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, marca_id, tipo_movimiento, cantidadNum, stockAnterior, nuevoStock, motivo || null, req.user?.username || null]
+        );
+
+        // Actualiza alerta_stock automáticamente según si alguna marca está por debajo del mínimo
+        await connection.query(
+            `UPDATE Articulos SET alerta_stock = (
+                SELECT CASE WHEN MIN(amp.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+                FROM Articulo_Marca_Precio amp WHERE amp.articulo_id = ?
+             ) WHERE articulo_id = ?`,
+            [id, id]
+        );
+
+        await connection.commit();
+        res.json({ message: 'Stock ajustado correctamente', stock_anterior: stockAnterior, stock_nuevo: nuevoStock });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error en ajustarStock:', error);
+        res.status(500).json({ message: 'Error al ajustar el stock' });
+    } finally {
+        connection.release();
+    }
+};
+
+module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes, agregarMarca, actualizarMarca, eliminarMarca, ajustarStock };
