@@ -96,4 +96,14 @@ const eliminarVehiculo = async (req, res) => {
     }
 };
 
-module.exports = { crearVehiculo, obtenerVehiculos, obtenerVehiculo, actualizarVehiculo, eliminarVehiculo };
+const consultarPlacaExterna = async (req, res) => {
+    const { placa } = req.body;
+    if (!placa) return res.status(400).json({ message: 'La placa es requerida' });
+
+    const datos = await consultarPlacaAPI(placa.trim().toUpperCase());
+    if (!datos) return res.status(404).json({ message: 'No se encontró información para esa placa' });
+
+    res.json(datos);
+};
+
+module.exports = { crearVehiculo, obtenerVehiculos, obtenerVehiculo, actualizarVehiculo, eliminarVehiculo, consultarPlacaExterna };
