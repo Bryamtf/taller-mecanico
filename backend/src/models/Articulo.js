@@ -180,4 +180,35 @@ const reactivarArticulo = async (id) => {
     return result.affectedRows > 0;
 }
 
-module.exports = { crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo, actualizarOrdenImagenes, obtenerMaxOrden, obtenerDetallesImagenes };
+const agregarMarca = async (articulo_id, { marca_id, precio_venta, precio_costo, stock_actual }) => {
+    const [result] = await pool.query(
+        `INSERT INTO Articulo_Marca_Precio (articulo_id, marca_id, precio_venta, precio_costo, stock_actual)
+         VALUES (?, ?, ?, ?, ?)`,
+        [articulo_id, marca_id, parseFloat(precio_venta || 0), parseFloat(precio_costo || 0), parseInt(stock_actual || 0)]
+    );
+    return result.affectedRows > 0;
+};
+
+const actualizarMarca = async (articulo_id, marca_id, { precio_venta, precio_costo, stock_actual }) => {
+    const [result] = await pool.query(
+        `UPDATE Articulo_Marca_Precio
+         SET precio_venta = ?, precio_costo = ?, stock_actual = ?
+         WHERE articulo_id = ? AND marca_id = ?`,
+        [parseFloat(precio_venta || 0), parseFloat(precio_costo || 0), parseInt(stock_actual || 0), articulo_id, marca_id]
+    );
+    return result.affectedRows > 0;
+};
+
+const eliminarMarca = async (articulo_id, marca_id) => {
+    const [result] = await pool.query(
+        `DELETE FROM Articulo_Marca_Precio WHERE articulo_id = ? AND marca_id = ?`,
+        [articulo_id, marca_id]
+    );
+    return result.affectedRows > 0;
+};
+
+module.exports = {
+    crearArticulo, actualizarArticulo, eliminarLogicoArticulo, reactivarArticulo,
+    actualizarOrdenImagenes, obtenerMaxOrden, obtenerDetallesImagenes,
+    agregarMarca, actualizarMarca, eliminarMarca,
+};

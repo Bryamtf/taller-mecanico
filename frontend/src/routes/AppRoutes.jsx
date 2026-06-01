@@ -2,7 +2,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./PrivateRoute";
 import MainLayout from "@/layouts/MainLayout";
 import LoginPage from "@/features/auth/pages/LoginPage";
-import ClientesPage from "@/features/clientes/pages/ClientesPage";
+import ClientesPage   from "@/features/clientes/pages/ClientesPage";
+import InventarioPage from "@/features/inventario/pages/InventarioPage";
 
 import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
 import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
@@ -27,10 +28,10 @@ export default function AppRoutes() {
           />
           <Route
             path="/inventario"
-            element={<div className="text-xl font-semibold">Inventario</div>}
+            element={<InventarioPage />}
           />
           <Route path="/cotizaciones" element={<ListaCotizaciones />} />
-          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />
+          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} /> 
           <Route
             path="/cotizaciones/:id/editar"
             element={<EditarCotizacion />}
