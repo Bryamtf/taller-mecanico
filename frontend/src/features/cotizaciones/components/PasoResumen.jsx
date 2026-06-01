@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 
 const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
@@ -7,6 +7,7 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
   const [mostrarModalPlantilla, setMostrarModalPlantilla] = useState(false);
   const [nombrePlantilla, setNombrePlantilla] = useState("");
 
+  // Calcular fecha a partir de días
   const calcularFechaDesdeDias = (dias) => {
     if (!dias || dias <= 0) return "";
     const fecha = new Date();
@@ -14,6 +15,7 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     return fecha.toISOString().split("T")[0];
   };
 
+  // Calcular días a partir de fecha
   const calcularDiasDesdeFecha = (fecha) => {
     if (!fecha) return "";
     const hoy = new Date();
@@ -25,6 +27,7 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     return diffDias > 0 ? diffDias : "";
   };
 
+  // Cuando cambian los días, actualizar la fecha
   const handleDiasChange = (e) => {
     const dias = e.target.value;
     setDiasEstimados(dias);
@@ -32,13 +35,20 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     if (dias && parseInt(dias) > 0) {
       const nuevaFecha = calcularFechaDesdeDias(dias);
       setFechaEntrega(nuevaFecha);
-      onUpdate({ dias_estimados: dias, fecha_entrega: nuevaFecha });
+      onUpdate({
+        dias_estimados: dias,
+        fecha_entrega: nuevaFecha,
+      });
     } else {
       setFechaEntrega("");
-      onUpdate({ dias_estimados: dias, fecha_entrega: "" });
+      onUpdate({
+        dias_estimados: dias,
+        fecha_entrega: "",
+      });
     }
   };
 
+  // Cuando cambia la fecha, actualizar los días
   const handleFechaChange = (e) => {
     const fecha = e.target.value;
     setFechaEntrega(fecha);
@@ -46,21 +56,24 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     if (fecha) {
       const dias = calcularDiasDesdeFecha(fecha);
       setDiasEstimados(dias);
-      onUpdate({ fecha_entrega: fecha, dias_estimados: dias });
+      onUpdate({
+        fecha_entrega: fecha,
+        dias_estimados: dias,
+      });
     } else {
       setDiasEstimados("");
-      onUpdate({ fecha_entrega: "", dias_estimados: "" });
+      onUpdate({
+        fecha_entrega: "",
+        dias_estimados: "",
+      });
     }
   };
 
   const formatMoney = (value) => {
-    return `S/ ${(value || 0).toLocaleString("es-PE", {
-      minimumFractionDigits: 2,
-    })}`;
+    return `S/ ${(value || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
   };
 
   const handleGuardar = () => {
-    // Sincroniza antes de mostrar el modal
     onUpdate({
       fecha_entrega: fechaEntrega,
       dias_estimados: diasEstimados,
@@ -82,14 +95,12 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     });
 
     setMostrarModalPlantilla(false);
-    // Pasa la fecha directamente para evitar race condition con el estado del padre
-    onGuardar({ fecha_entrega: fechaEntrega, dias_estimados: diasEstimados });
+    onGuardar();
   };
 
   const handleGuardarNormal = () => {
     setMostrarModalPlantilla(false);
-    // Pasa la fecha directamente para evitar race condition con el estado del padre
-    onGuardar({ fecha_entrega: fechaEntrega, dias_estimados: diasEstimados });
+    onGuardar();
   };
 
   return (
@@ -136,7 +147,7 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
           </div>
         </div>
 
-        {/* Fecha de entrega */}
+        {/* Fecha de entrega - Interactivo */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-semibold text-gray-700 mb-3">
             Fecha Estimada de Entrega
