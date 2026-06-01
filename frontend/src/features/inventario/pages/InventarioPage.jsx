@@ -56,18 +56,18 @@ export default function InventarioPage() {
   return (
     <div className="space-y-5">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-gray-800">Inventario</h1>
           <p className="text-sm text-[#bababa]">{total} producto{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setMarcasOpen(true)}
-            className="flex items-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Tag size={16} /> Gestionar marcas
           </button>
           <button onClick={handleNuevo}
-            className="flex items-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Plus size={16} /> Nuevo producto
           </button>
         </div>
