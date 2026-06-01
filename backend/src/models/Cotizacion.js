@@ -18,17 +18,19 @@ const Cotizacion = {
       total,
       fecha_emision,
       fecha_vencimiento,
+      fecha_entrega,
       observaciones,
       numero_cotizacion,
     } = data;
-    const [result] = await ( conn||pool).execute(
+    console.log("Datos recibidos para creación:", data);
+    const [result] = await (conn || pool).execute(
       `INSERT INTO Cotizacion (
             cliente_id, vehiculo_id, cita_id, creado_por,
             es_modelo, nombre_modelo, cotizacion_origen_id,
             estado, kilometraje_momento, subtotal, descuento, igv, total,
-            fecha_emision, fecha_vencimiento, observaciones,
+            fecha_emision, fecha_vencimiento, fecha_entrega, observaciones,
             numero_cotizacion
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'borrador', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         cliente_id,
         vehiculo_id,
@@ -44,6 +46,7 @@ const Cotizacion = {
         total,
         fecha_emision,
         fecha_vencimiento || null,
+        fecha_entrega || null,
         observaciones || null,
         numero_cotizacion || null,
       ],
@@ -52,7 +55,7 @@ const Cotizacion = {
   },
 
   async encontrarPorId(id, conn = null) {
-      const db = conn || pool;
+    const db = conn || pool;
     const [rows] = await db.execute(
       `SELECT c.*, 
                 c.numero_cotizacion,
@@ -157,6 +160,7 @@ const Cotizacion = {
       "total",
       "fecha_emision",
       "fecha_vencimiento",
+      "fecha_entrega",
       "observaciones",
       "pdf_path",
       "token_publico",
@@ -204,6 +208,7 @@ const Cotizacion = {
       fecha_emision: nuevasFechas
         ? new Date().toISOString().split("T")[0]
         : original.fecha_emision,
+      fecha_entrega: original.fecha_entrega,
       observaciones: original.observaciones,
     };
 

@@ -12,6 +12,8 @@ router.get('/:id', authMiddleware, checkPermiso('ver_citas'), vehiculoController
 router.post('/', authMiddleware, checkPermiso('crear_citas'), validateVehiculo, vehiculoController.crearVehiculo);
 router.put('/:id', authMiddleware, checkPermiso('editar_citas'), vehiculoController.actualizarVehiculo);
 
+router.get('/:cliente_id/vehiculos', authMiddleware, checkPermiso('ver_citas'), vehiculoController.buscarVehiculoPorCliente);
+
 // DELETE
 router.delete('/:id', authMiddleware, checkPermiso('eliminar_citas'), vehiculoController.eliminarVehiculo);
 
