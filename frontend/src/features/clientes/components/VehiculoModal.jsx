@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Search, Loader } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
-import { consultarPlaca, createVehiculo } from '../services/vehiculoService';
+import { consultarPlaca, createVehiculo, updateVehiculo } from '../services/vehiculoService';
 import { swalError } from '@/lib/swal';
 
 const COMBUSTIBLES = ['gasolina', 'diesel', 'GLP', 'GNV', 'electrico', 'hibrido'];
@@ -11,12 +11,17 @@ const inputClass = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm o
 const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
 const errorClass = 'text-xs text-red-500 mt-0.5';
 
-export default function VehiculoModal({ open, onClose, onSaved, clienteId }) {
+export default function VehiculoModal({ open, onClose, onSaved, clienteId, vehiculo }) {
+  const isEdit = !!vehiculo;
   const [buscandoPlaca, setBuscandoPlaca] = useState(false);
   const [saving, setSaving]               = useState(false);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
   const placaValue = watch('placa', '');
+
+  useEffect(() => {
+    if (open) reset(vehiculo ?? {});
+  }, [open, vehiculo, reset]);
 
   const handleClose = () => { reset(); onClose(); };
 
@@ -46,20 +51,31 @@ export default function VehiculoModal({ open, onClose, onSaved, clienteId }) {
   const onSubmit = async (data) => {
     setSaving(true);
     try {
-      await createVehiculo({
-        cliente_id:         clienteId,
-        placa:              data.placa.trim().toUpperCase(),
-        marca:              data.marca?.trim()            || undefined,
-        modelo:             data.modelo?.trim()           || undefined,
-        anio:               data.anio                     || undefined,
-        color:              data.color?.trim()            || undefined,
-        tipo_combustible:   data.tipo_combustible         || undefined,
-        kilometraje_actual: data.kilometraje_actual       || undefined,
-      });
+      if (isEdit) {
+        await updateVehiculo(vehiculo.vehiculo_id, {
+          marca:              data.marca?.trim()            || undefined,
+          modelo:             data.modelo?.trim()           || undefined,
+          anio:               data.anio                     || undefined,
+          color:              data.color?.trim()            || undefined,
+          tipo_combustible:   data.tipo_combustible         || undefined,
+          kilometraje_actual: data.kilometraje_actual       || undefined,
+        });
+      } else {
+        await createVehiculo({
+          cliente_id:         clienteId,
+          placa:              data.placa.trim().toUpperCase(),
+          marca:              data.marca?.trim()            || undefined,
+          modelo:             data.modelo?.trim()           || undefined,
+          anio:               data.anio                     || undefined,
+          color:              data.color?.trim()            || undefined,
+          tipo_combustible:   data.tipo_combustible         || undefined,
+          kilometraje_actual: data.kilometraje_actual       || undefined,
+        });
+      }
       reset();
       onSaved();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Error al registrar el vehículo.';
+      const msg = err.response?.data?.message || 'Error al guardar el vehículo.';
       swalError('Error', msg);
     } finally {
       setSaving(false);
@@ -67,34 +83,42 @@ export default function VehiculoModal({ open, onClose, onSaved, clienteId }) {
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Agregar vehículo" size="md">
+    <Modal open={open} onClose={handleClose} title={isEdit ? 'Editar vehículo' : 'Agregar vehículo'} size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
 
-        {/* Placa con consulta */}
+        {/* Placa — solo editable en modo creación */}
         <div>
-          <label className={labelClass}>Placa *</label>
-          <div className="flex gap-2">
-            <input
-              {...register('placa', {
-                required: 'La placa es requerida',
-                minLength: { value: 6, message: 'Mínimo 6 caracteres' },
-                maxLength: { value: 10, message: 'Máximo 10 caracteres' },
-                onChange: (e) => { e.target.value = e.target.value.toUpperCase(); },
-              })}
-              placeholder="ABC-123"
-              className={inputClass}
-            />
-            <button
-              type="button"
-              onClick={handleConsultarPlaca}
-              disabled={buscandoPlaca}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white hover:bg-[#d4a93a] disabled:opacity-60 transition-colors"
-            >
-              {buscandoPlaca ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
-              {buscandoPlaca ? 'Buscando...' : 'Consultar'}
-            </button>
-          </div>
-          {errors.placa && <p className={errorClass}>{errors.placa.message}</p>}
+          <label className={labelClass}>Placa {!isEdit && '*'}</label>
+          {isEdit ? (
+            <p className="px-3 py-2 text-sm bg-gray-100 rounded-lg text-gray-600 font-medium tracking-widest">
+              {vehiculo.placa}
+            </p>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  {...register('placa', {
+                    required: 'La placa es requerida',
+                    minLength: { value: 6, message: 'Mínimo 6 caracteres' },
+                    maxLength: { value: 10, message: 'Máximo 10 caracteres' },
+                    onChange: (e) => { e.target.value = e.target.value.toUpperCase(); },
+                  })}
+                  placeholder="ABC-123"
+                  className={inputClass}
+                />
+                <button
+                  type="button"
+                  onClick={handleConsultarPlaca}
+                  disabled={buscandoPlaca}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white hover:bg-[#d4a93a] disabled:opacity-60 transition-colors"
+                >
+                  {buscandoPlaca ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
+                  {buscandoPlaca ? 'Buscando...' : 'Consultar'}
+                </button>
+              </div>
+              {errors.placa && <p className={errorClass}>{errors.placa.message}</p>}
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -159,7 +183,7 @@ export default function VehiculoModal({ open, onClose, onSaved, clienteId }) {
             disabled={saving}
             className="px-4 py-2 text-sm rounded-lg bg-[#e5ba4a] text-white font-medium hover:bg-[#d4a93a] disabled:opacity-60 transition-colors"
           >
-            {saving ? 'Guardando...' : 'Agregar vehículo'}
+            {saving ? 'Guardando...' : isEdit ? 'Actualizar' : 'Agregar vehículo'}
           </button>
         </div>
       </form>

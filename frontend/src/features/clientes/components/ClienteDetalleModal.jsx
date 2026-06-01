@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Car, Phone, Mail, MapPin, Hash, Edit, Plus } from 'lucide-react';
+import { Car, Phone, Mail, MapPin, Hash, Edit, Plus, Pencil } from 'lucide-react';
 import Modal from '@/components/Modal/Modal';
 import VehiculoModal from './VehiculoModal';
 import { getCliente } from '../services/clienteService';
 import { swalSuccess } from '@/lib/swal';
 
-export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar }) {
-  const [cliente, setCliente]             = useState(null);
-  const [loading, setLoading]             = useState(false);
+export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar, onDataChanged }) {
+  const [cliente, setCliente]                   = useState(null);
+  const [loading, setLoading]                   = useState(false);
   const [vehiculoModalOpen, setVehiculoModalOpen] = useState(false);
+  const [vehiculoSel, setVehiculoSel]           = useState(null);
 
   const fetchCliente = useCallback(async () => {
     if (!clienteId) return;
     setLoading(true);
     try {
-      const data = await getCliente(clienteId);
-      setCliente(data);
+      setCliente(await getCliente(clienteId));
     } finally {
       setLoading(false);
     }
@@ -25,10 +25,18 @@ export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar
     if (open) fetchCliente();
   }, [open, fetchCliente]);
 
+  const abrirNuevoVehiculo = () => { setVehiculoSel(null); setVehiculoModalOpen(true); };
+  const abrirEditarVehiculo = (v) => { setVehiculoSel(v); setVehiculoModalOpen(true); };
+
   const handleVehiculoSaved = async () => {
     setVehiculoModalOpen(false);
+    setVehiculoSel(null);
     await fetchCliente();
-    swalSuccess('Vehículo agregado', 'El vehículo fue registrado correctamente.');
+    onDataChanged?.();
+    swalSuccess(
+      vehiculoSel ? 'Vehículo actualizado' : 'Vehículo agregado',
+      vehiculoSel ? 'Los datos del vehículo fueron actualizados.' : 'El vehículo fue registrado correctamente.'
+    );
   };
 
   return (
@@ -93,7 +101,7 @@ export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar
                     Vehículos ({cliente.vehiculos?.length ?? 0})
                   </h4>
                   <button
-                    onClick={() => setVehiculoModalOpen(true)}
+                    onClick={abrirNuevoVehiculo}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-[#e5ba4a] text-white hover:bg-[#d4a93a] transition-colors"
                   >
                     <Plus size={13} /> Agregar vehículo
@@ -112,11 +120,20 @@ export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar
                           <span className="font-semibold text-gray-800 tracking-wide">{v.placa}</span>
                           <span className="text-gray-500">{[v.marca, v.modelo, v.anio].filter(Boolean).join(' · ')}</span>
                         </div>
-                        {v.tipo_combustible && (
-                          <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full capitalize">
-                            {v.tipo_combustible}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {v.tipo_combustible && (
+                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full capitalize">
+                              {v.tipo_combustible}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => abrirEditarVehiculo(v)}
+                            title="Editar vehículo"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -129,9 +146,10 @@ export default function ClienteDetalleModal({ open, clienteId, onClose, onEditar
 
       <VehiculoModal
         open={vehiculoModalOpen}
-        onClose={() => setVehiculoModalOpen(false)}
+        onClose={() => { setVehiculoModalOpen(false); setVehiculoSel(null); }}
         onSaved={handleVehiculoSaved}
         clienteId={clienteId}
+        vehiculo={vehiculoSel}
       />
     </>
   );
