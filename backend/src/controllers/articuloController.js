@@ -54,7 +54,11 @@ const editarArticulo = async (req, res) => {
         // 1. Capturar IDs de imágenes a eliminar (El frontend enviará un texto como "[1, 5]")
         let imagenes_a_eliminar = [];
         if (datosArticulo.imagenes_a_eliminar) {
-            imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
+            try {
+                imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
+            } catch {
+                return res.status(400).json({ message: 'Formato inválido en imagenes_a_eliminar' });
+            }
         }
 
         // 2. Procesar las imágenes NUEVAS que entraron por Multer
@@ -216,4 +220,51 @@ const cambiarOrdenImagenes = async (req, res) => {
     }
 };
 
-module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes };
+const agregarMarca = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { marca_id, precio_venta, precio_costo, stock_actual } = req.body;
+
+        if (!marca_id) return res.status(400).json({ message: 'La marca es requerida' });
+
+        await Articulo.agregarMarca(id, { marca_id, precio_venta, precio_costo, stock_actual });
+        res.status(201).json({ message: 'Marca agregada al artículo correctamente' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'Esta marca ya está registrada para este artículo' });
+        }
+        console.error('Error en agregarMarca:', error);
+        res.status(500).json({ message: 'Error al agregar la marca' });
+    }
+};
+
+const actualizarMarca = async (req, res) => {
+    try {
+        const { id, marca_id } = req.params;
+        const { precio_venta, precio_costo, stock_actual } = req.body;
+
+        const actualizado = await Articulo.actualizarMarca(id, marca_id, { precio_venta, precio_costo, stock_actual });
+        if (!actualizado) return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+
+        res.json({ message: 'Marca actualizada correctamente' });
+    } catch (error) {
+        console.error('Error en actualizarMarca:', error);
+        res.status(500).json({ message: 'Error al actualizar la marca' });
+    }
+};
+
+const eliminarMarca = async (req, res) => {
+    try {
+        const { id, marca_id } = req.params;
+
+        const eliminado = await Articulo.eliminarMarca(id, marca_id);
+        if (!eliminado) return res.status(404).json({ message: 'Combinación artículo-marca no encontrada' });
+
+        res.json({ message: 'Marca eliminada del artículo correctamente' });
+    } catch (error) {
+        console.error('Error en eliminarMarca:', error);
+        res.status(500).json({ message: 'Error al eliminar la marca' });
+    }
+};
+
+module.exports = { crearNuevoArticulo, editarArticulo, eliminarArticulo, reactivarArticulo, cambiarOrdenImagenes, agregarMarca, actualizarMarca, eliminarMarca };
