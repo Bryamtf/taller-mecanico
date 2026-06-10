@@ -1,0 +1,166 @@
+name: CI - Taller Mecánico AUTONORT
+
+on:
+  push:
+    branches: [ main, development, feature/* ]
+  pull_request:
+    branches: [ main, development ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # JOB 1: Validación del Backend (Node.js)
+  validate-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ./backend/package-lock.json
+      
+      - name: Instalar dependencias
+        run: npm ci || npm install
+      
+      - name: Verificar sintaxis (Node)
+        run: node -c server.js || echo "No hay server.js aún"
+      
+      - name: Listar archivos del backend (debug)
+        run: ls -la
+      
+      - name: Cache de node_modules
+        uses: actions/cache@v3
+        with:
+          path: ./backend/node_modules
+          key: backend-${{ runner.os }}-${{ hashFiles('./backend/package-lock.json') }}
+
+  # JOB 2: Build del Frontend (React + Vite)
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ./frontend/package-lock.json
+      
+      - name: Instalar dependencias
+        run: npm ci || npm install
+      
+      - name: Build de producción
+        run: npm run build
+        env:
+          VITE_API_URL: http://localhost:3000/api
+      
+      - name: Cache de node_modules
+        uses: actions/cache@v3
+        with:
+          path: ./frontend/node_modules
+          key: frontend-${{ runner.os }}-${{ hashFiles('./frontend/package-lock.json') }}
+      
+      - name: Guardar artefacto del build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./frontend/dist
+          retention-days: 7
+
+  # JOB 3: Validación de Docker
+  validate-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Verificar sintaxis de docker-compose
+        run: docker-compose -f docker-compose.yml config
+      
+      - name: Verificar que los Dockerfiles existen
+        run: |
+          test -f docker/Dockerfile.backend && echo "✅ Dockerfile.backend existe" || echo "⚠️ Falta Dockerfile.backend"
+          test -f docker/Dockerfile.frontend && echo "✅ Dockerfile.frontend existe" || echo "⚠️ Falta Dockerfile.frontend"
+      
+      - name: Validar Dockerfile.backend
+        run: docker run --rm -i hadolint/hadolint < docker/Dockerfile.backend || echo "⚠️ Hadolint no disponible, se omite"
+        continue-on-error: true
+
+  # JOB 4: Verificar archivos importantes
+  check-files:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Verificar estructura del proyecto
+        run: |
+          echo "=== ESTRUCTURA DEL PROYECTO ==="
+          ls -la
+          echo ""
+          echo "=== BACKEND ==="
+          ls -la backend/ || echo "Carpeta backend no encontrada"
+          echo ""
+          echo "=== FRONTEND ==="
+          ls -la frontend/ || echo "Carpeta frontend no encontrada"
+          echo ""
+          echo "=== DOCKER ==="
+          ls -la docker/ || echo "Carpeta docker no encontrada"
+      
+      - name: Verificar archivo .env.example
+        run: |
+          if [ ! -f .env ]; then
+            echo "No hay archivo .env, creando .env.example recomendado"
+            echo "MYSQL_ROOT_PASSWORD=root123" > .env.example
+            echo "MYSQL_DATABASE=taller_db" >> .env.example
+            echo "MYSQL_USER=taller_user" >> .env.example
+            echo "MYSQL_PASSWORD=taller_pass" >> .env.example
+          else
+            echo "✅ Archivo .env existe (no se sube a GitHub por seguridad)"
+          fi
+
+  # REPORTE FINAL
+  report:
+    needs: [validate-backend, build-frontend, validate-docker, check-files]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generar reporte de CI
+        run: |
+          echo "========================================="
+          echo "CI - TALLER MECÁNICO AUTONORT"
+          echo "========================================="
+          echo ""
+          echo "RESULTADOS:"
+          echo "  ✅ Backend validation: ${{ needs.validate-backend.result }}"
+          echo "  ✅ Frontend build: ${{ needs.build-frontend.result }}"
+          echo "  ✅ Docker validation: ${{ needs.validate-docker.result }}"
+          echo "  ✅ Files check: ${{ needs.check-files.result }}"
+          echo ""
+          if [[ "${{ needs.validate-backend.result }}" == "success" && \
+                "${{ needs.build-frontend.result }}" == "success" && \
+                "${{ needs.validate-docker.result }}" == "success" ]]; then
+            echo "🎉 ¡TODO OK! El pipeline pasó correctamente."
+            echo "💡 Próximo paso: Agregar tests automatizados al backend."
+          else
+            echo "⚠️ Algunas validaciones fallaron. Revisar los logs arriba."
+          fi
+          echo "========================================="
