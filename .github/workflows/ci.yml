@@ -136,7 +136,7 @@ jobs:
       - name: Versión de Docker
         run: |
           docker --version
-          docker-compose --version
+          docker-compose version
 
   # JOB 4: Verificar estructura del proyecto
   check-files:
