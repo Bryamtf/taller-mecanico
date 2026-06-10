@@ -37,11 +37,15 @@ jobs:
           ls -la
           echo ""
           echo " Verificando sintaxis..."
-          for file in *.js 2>/dev/null; do
-            echo "  Validando: $file"
-            node -c "$file" && echo "OK" || echo "Error en $file"
-          done
-      
+          if ls *.js 1> /dev/null 2>&1; then
+            for file in *.js; do
+              echo "  Validando: $file"
+              node -c "$file" && echo "OK" || echo "Error en $file"
+            done
+          else
+            echo "No se encontraron archivos .js en la raíz"
+          fi
+            
       - name: Info del proyecto
         run: |
           echo " Nombre: $(node -p "require('./package.json').name")"
