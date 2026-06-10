@@ -105,7 +105,7 @@ jobs:
       - name: Verificar docker-compose.yml
         run: |
           echo " Validando sintaxis de docker-compose..."
-          docker-compose -f docker-compose.yml config
+          docker compose -f docker-compose.yml config
           if [ $? -eq 0 ]; then
             echo " docker-compose.yml es válido"
           else
