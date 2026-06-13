@@ -601,6 +601,94 @@ COMMENT 'Número formateado: COT-2026-000001';
 -- Paso 2: Agregar índice único (no puede haber números duplicados)
 ALTER TABLE Cotizacion 
 ADD UNIQUE INDEX uq_numero_cotizacion (numero_cotizacion);
-  SEBASTIAN: Hacer que el correo de la tabla usuarios sean únicos.
-*/
+-- SEBASTIAN: Hacer que el correo de la tabla usuarios sean únicos.
 ALTER TABLE `Usuario` ADD UNIQUE(`email`);
+
+
+-- DESARROLLO DEL MÓDULO DE INCIDENCIAS
+-- Correlativo para código único INC-YYYY-NNNNNN
+CREATE TABLE IF NOT EXISTS Correlativo_Incidencia (
+  id                  INT       NOT NULL AUTO_INCREMENT,
+  anio                INT       NOT NULL,
+  ultimo_numero       INT       NOT NULL DEFAULT 0,
+  fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_inc_anio (anio)
+) ENGINE=InnoDB COMMENT='Control de correlativo anual para incidencias';
+
+
+CREATE TABLE IF NOT EXISTS Incidencia (
+  incidencia_id    INT          NOT NULL AUTO_INCREMENT,
+  codigo           VARCHAR(20)  NOT NULL COMMENT 'Ej: INC-2026-000001',
+
+  -- Descripción
+  titulo           VARCHAR(150) NOT NULL,
+  descripcion      TEXT         NOT NULL,
+
+  -- Clasificación
+  categoria        VARCHAR(50)  NOT NULL COMMENT 'tecnica, operativa, cliente, inventario, seguridad',
+  canal_entrada    VARCHAR(20)  NOT NULL DEFAULT 'interno' COMMENT 'interno, cliente',
+
+  -- Priorización ITIL: urgencia + impacto → prioridad
+  urgencia         VARCHAR(20)  NOT NULL DEFAULT 'media'  COMMENT 'baja, media, alta',
+  impacto          VARCHAR(20)  NOT NULL DEFAULT 'medio'  COMMENT 'bajo, medio, alto',
+  prioridad        VARCHAR(20)  NOT NULL DEFAULT 'media'  COMMENT 'baja, media, alta, critica',
+
+  -- Ciclo de vida
+  estado           VARCHAR(30)  NOT NULL DEFAULT 'abierta' COMMENT 'abierta, en_proceso, escalada, resuelta, cerrada',
+
+  -- Relaciones opcionales con otras entidades del sistema
+  cliente_id       INT          NULL,
+  vehiculo_id      INT          NULL,
+  cita_id          INT          NULL,
+  articulo_id      INT          NULL,
+  token_id         INT          NULL COMMENT 'Token del cliente si reportó la incidencia vía portal público',
+
+  -- Responsables
+  reportado_por    VARCHAR(30)  NULL COMMENT 'NULL si fue reportada por cliente vía token',
+  asignado_a       VARCHAR(30)  NULL,
+
+  -- Resolución
+  solucion         TEXT         NULL,
+  categoria_cierre VARCHAR(50)  NULL COMMENT 'resuelto, workaround, sin_solucion, duplicada',
+
+  -- Soft delete
+  activo           TINYINT(1)   NOT NULL DEFAULT 1,
+
+  -- Fechas del ciclo de vida
+  fecha_registro   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_asignacion TIMESTAMP    NULL,
+  fecha_resolucion TIMESTAMP    NULL,
+  fecha_cierre     TIMESTAMP    NULL,
+
+  PRIMARY KEY (incidencia_id),
+  UNIQUE KEY uq_inc_codigo (codigo),
+  CONSTRAINT fk_inc_cliente    FOREIGN KEY (cliente_id)    REFERENCES Cliente(cliente_id)         ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_vehiculo   FOREIGN KEY (vehiculo_id)   REFERENCES Vehiculo(vehiculo_id)       ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_cita       FOREIGN KEY (cita_id)       REFERENCES Cita(cita_id)               ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_articulo   FOREIGN KEY (articulo_id)   REFERENCES Articulos(articulo_id)      ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_token      FOREIGN KEY (token_id)      REFERENCES Seguimiento_token(token_id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_reporta    FOREIGN KEY (reportado_por) REFERENCES Usuario(username)           ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_inc_asignado   FOREIGN KEY (asignado_a)    REFERENCES Usuario(username)           ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Registro de incidencias del taller (ITIL adaptado)';
+
+
+CREATE TABLE IF NOT EXISTS Incidencia_Historial (
+  historial_id    INT         NOT NULL AUTO_INCREMENT,
+  incidencia_id   INT         NOT NULL,
+  tipo_accion     VARCHAR(30) NOT NULL COMMENT 'nota, cambio_estado, escalado, asignacion, resolucion, cierre',
+  descripcion     TEXT        NOT NULL,
+  estado_anterior VARCHAR(30) NULL,
+  estado_nuevo    VARCHAR(30) NULL,
+  realizado_por   VARCHAR(30) NULL,
+  fecha           TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (historial_id),
+  CONSTRAINT fk_ih_incidencia FOREIGN KEY (incidencia_id) REFERENCES Incidencia(incidencia_id) ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_ih_usuario    FOREIGN KEY (realizado_por) REFERENCES Usuario(username)         ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Historial de acciones sobre cada incidencia';
+
+
+-- Extender Imagenes para soportar adjuntos de incidencias
+ALTER TABLE Imagenes
+  ADD COLUMN incidencia_id INT NULL AFTER articulo_id,
+  ADD CONSTRAINT fk_img_incidencia FOREIGN KEY (incidencia_id) REFERENCES Incidencia(incidencia_id) ON DELETE CASCADE ON UPDATE CASCADE;
