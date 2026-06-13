@@ -69,6 +69,17 @@ const eliminar = async (id) => {
   return result.affectedRows > 0;
 };
 
+const buscarPorPlaca = async (placa) => {
+  const [rows] = await pool.query(
+    `SELECT v.*, c.nombres, c.apellidos, c.dni_ruc
+     FROM Vehiculo v
+     JOIN Cliente c ON v.cliente_id = c.cliente_id
+     WHERE v.placa = ?`,
+    [placa]
+  );
+  return rows[0] ?? null;
+};
+
 const buscarPorCliente = async (cliente_id) => {
   const [rows] = await pool.query(
     `SELECT * FROM Vehiculo WHERE cliente_id = ? ORDER BY fecha_registro DESC`,
@@ -85,4 +96,5 @@ module.exports = {
   actualizar,
   eliminar,
   buscarPorCliente,
+  buscarPorPlaca,
 };

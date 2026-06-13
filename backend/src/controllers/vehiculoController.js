@@ -136,6 +136,16 @@ const consultarPlacaExterna = async (req, res) => {
   res.json(datos);
 };
 
+const buscarPorPlaca = async (req, res) => {
+  try {
+    const vehiculo = await Vehiculo.buscarPorPlaca(req.params.placa.toUpperCase());
+    if (!vehiculo) return res.status(404).json({ message: 'Vehículo no encontrado.' });
+    res.json(vehiculo);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al buscar por placa.' });
+  }
+};
+
 module.exports = {
   buscarVehiculoPorCliente,
   crearVehiculo,
@@ -143,5 +153,6 @@ module.exports = {
   obtenerVehiculo,
   actualizarVehiculo,
   eliminarVehiculo,
-  consultarPlacaExterna
+  consultarPlacaExterna,
+  buscarPorPlaca,
 };

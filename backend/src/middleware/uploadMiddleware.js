@@ -67,6 +67,18 @@ const fileFilterImagenes = (req, file, cb) => {
   }
 };
 
+const storageIncidencias = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const ruta = path.join(__dirname, '../../uploads/incidencias');
+    asegurarCarpeta(ruta);
+    cb(null, ruta);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'inc-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
 // Middlewares
 const uploadArticulos = multer({
   storage: storageArticulos,
@@ -85,8 +97,15 @@ const uploadImagenesCotizacion = multer({
   fileFilter: fileFilterImagenes,
 });
 
+const uploadIncidencias = multer({
+  storage: storageIncidencias,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: fileFilterImagenes,
+});
+
 module.exports = {
   uploadArticulos,
   uploadCotizaciones,
   uploadImagenesCotizacion,
+  uploadIncidencias,
 };
