@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
-const { verifyToken } = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');
 const { uploadIncidencias } = require('../middleware/uploadMiddleware');
 
 const {
@@ -14,12 +14,12 @@ const {
   eliminarIncidencia,
 } = require('../controllers/incidenciaController');
 
-router.use(verifyToken);
+router.use(authMiddleware);
 
 router.get('/',           listarIncidencias);
 router.get('/:id',        obtenerIncidencia);
 router.post('/',          uploadIncidencias.array('imagenes', 5), crearIncidencia);
-router.put('/:id',        editarIncidencia);
+router.put('/:id',        uploadIncidencias.array('imagenes', 5), editarIncidencia);
 router.patch('/:id/estado',   cambiarEstado);
 router.patch('/:id/asignar',  asignarIncidencia);
 router.post('/:id/notas',     agregarNota);

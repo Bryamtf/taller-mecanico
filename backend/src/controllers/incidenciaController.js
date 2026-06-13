@@ -52,12 +52,33 @@ const crearIncidencia = async (req, res) => {
   }
 };
 
+// FormData manda todo como string y convierte '' y 'null' en un null de verdad
+const nullify = (v) => (v === '' || v === 'null' || v === undefined ? null : v);
+
 const editarIncidencia = async (req, res) => {
   try {
     const { id } = req.params;
     const username = req.user?.username || null;
 
-    await Incidencia.actualizar(id, { ...req.body, realizado_por: username });
+    const datos = {
+      titulo:           req.body.titulo,
+      descripcion:      req.body.descripcion,
+      categoria:        req.body.categoria,
+      urgencia:         req.body.urgencia,
+      impacto:          req.body.impacto,
+      asignado_a:       nullify(req.body.asignado_a),
+      solucion:         nullify(req.body.solucion),
+      categoria_cierre: nullify(req.body.categoria_cierre),
+      cliente_id:       nullify(req.body.cliente_id),
+      vehiculo_id:      nullify(req.body.vehiculo_id),
+      realizado_por:    username,
+    };
+
+    const archivos = (req.files || []).map((f) => ({
+      ruta: `/uploads/incidencias/${f.filename}`,
+    }));
+
+    await Incidencia.actualizar(id, datos, archivos);
     res.json({ message: 'Incidencia actualizada' });
   } catch (error) {
     console.error('Error al editar incidencia:', error);

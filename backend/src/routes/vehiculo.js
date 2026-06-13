@@ -6,6 +6,7 @@ const { authMiddleware, checkPermiso } = require('../middleware/authMiddleware')
 
 // GET - Protegido por JWT y permiso de ver_citas
 router.get('/', authMiddleware, checkPermiso('ver_citas'), vehiculoController.obtenerVehiculos);
+router.get('/placa/:placa', authMiddleware, vehiculoController.buscarPorPlaca);
 router.get('/:id', authMiddleware, checkPermiso('ver_citas'), vehiculoController.obtenerVehiculo);
 
 // POST y PUT - Protegidos, validados y con conexión a la API externa

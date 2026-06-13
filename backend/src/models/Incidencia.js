@@ -30,6 +30,14 @@ const listar = async ({ pagina = 1, limite = 10, busqueda = '', estado = '', pri
     params
   );
 
+  const [[resumen]] = await pool.query(
+    `SELECT
+      SUM(estado = 'abierta')    AS abiertas,
+      SUM(estado = 'en_proceso') AS en_proceso,
+      SUM(prioridad = 'critica' AND estado NOT IN ('resuelta','cerrada')) AS criticas
+     FROM Incidencia WHERE activo = 1`
+  );
+
   const [rows] = await pool.query(
     `SELECT
       i.incidencia_id, i.codigo, i.titulo, i.categoria, i.canal_entrada,
@@ -53,6 +61,11 @@ const listar = async ({ pagina = 1, limite = 10, busqueda = '', estado = '', pri
     total: Number(total),
     totalPaginas: Math.ceil(Number(total) / limite),
     datos: rows,
+    resumen: {
+      abiertas:   Number(resumen.abiertas   ?? 0),
+      en_proceso: Number(resumen.en_proceso ?? 0),
+      criticas:   Number(resumen.criticas   ?? 0),
+    },
   };
 };
 
@@ -154,7 +167,7 @@ const crear = async (datos, archivos = []) => {
   }
 };
 
-const actualizar = async (id, datos) => {
+const actualizar = async (id, datos, archivos = []) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -171,16 +184,24 @@ const actualizar = async (id, datos) => {
       [
         datos.titulo, datos.descripcion, datos.categoria,
         datos.urgencia, datos.impacto, prioridad,
-        datos.cliente_id  || null,
-        datos.vehiculo_id || null,
-        datos.cita_id     || null,
-        datos.articulo_id || null,
+        datos.cliente_id   || null,
+        datos.vehiculo_id  || null,
+        datos.cita_id      || null,
+        datos.articulo_id  || null,
         datos.asignado_a      || null,
         datos.solucion        || null,
         datos.categoria_cierre || null,
         id,
       ]
     );
+    
+    for (const archivo of archivos) {
+      await conn.query(
+        `INSERT INTO Imagenes (incidencia_id, ruta_archivo, tipo, subido_por)
+         VALUES (?, ?, 'durante', ?)`,
+        [id, archivo.ruta, datos.realizado_por || null]
+      );
+    }
 
     await conn.query(
       `INSERT INTO Incidencia_Historial
