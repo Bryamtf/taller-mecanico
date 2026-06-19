@@ -14,6 +14,17 @@ class PDFService {
       website: "www.autonort.com",
     };
     this.browser = null;
+    this.logoHTML = this.cargarLogoHTML();
+  }
+
+  cargarLogoHTML() {
+    const logoPath = path.join(__dirname, "../../uploads/logo.jpeg");
+    if (!fs.existsSync(logoPath)) {
+      return `<div class="logo-placeholder">LOGO</div>`;
+    }
+    const logoBuffer = fs.readFileSync(logoPath);
+    const logoBase64 = logoBuffer.toString("base64");
+    return `<img src="data:image/jpeg;base64,${logoBase64}" class="logo" alt="Logo" />`;
   }
 
   async getBrowser() {
@@ -37,7 +48,7 @@ class PDFService {
     const browser = await this.getBrowser();
     const page = await browser.newPage();
     try {
-      await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.setContent(html, { waitUntil: "domcontentloaded" });
       const buffer = await page.pdf({
         format: "A4",
         printBackground: true,
@@ -52,11 +63,7 @@ class PDFService {
   generarHTML(cotizacion) {
     const numeroMostrar =
       cotizacion.numero_cotizacion || `${cotizacion.cotizacion_id}`;
-
-    const logoPath = path.join(__dirname, "../../uploads/logo.jpeg");
-    const logoHTML = fs.existsSync(logoPath)
-      ? `<img src="file://${logoPath}" class="logo" alt="Logo" />`
-      : `<div class="logo-placeholder">LOGO</div>`;
+    const logoHTML = this.logoHTML;
 
     // Separar repuestos y servicios
     const repuestos = (cotizacion.detalles || []).filter((d) => !d.es_servicio);

@@ -9,6 +9,7 @@ import IncidenciasPage from "@/features/incidencias/pages/IncidenciasPage";
 import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
 import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
+import VerCotizacion from "@/features/cotizaciones/pages/VerCotizacion";
 
 export default function AppRoutes() {
   return (
@@ -27,13 +28,11 @@ export default function AppRoutes() {
             path="/citas"
             element={<div className="text-xl font-semibold">Citas</div>}
           />
-          <Route
-            path="/inventario"
-            element={<InventarioPage />}
-          />
+          <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/incidencias" element={<IncidenciasPage />} />
           <Route path="/cotizaciones" element={<ListaCotizaciones />} />
-          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} /> 
+          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />
+          <Route path="/cotizaciones/:id" element={<VerCotizacion />} />
           <Route
             path="/cotizaciones/:id/editar"
             element={<EditarCotizacion />}

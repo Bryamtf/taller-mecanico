@@ -85,12 +85,19 @@ const imagenService = {
    * @param {Object} conn - Conexión de BD (para transacción)
    * @returns {Promise<number>} - ID de la imagen insertada
    */
-  async registrarEnBD(cotizacionId, ruta, orden, subidoPor, conn) {
+  async registrarEnBD(
+    cotizacionId,
+    ruta,
+    orden,
+    subidoPor,
+    conn,
+    descripcion = null,
+  ) {
     const [result] = await conn.execute(
       `INSERT INTO Imagenes (
-                cotizacion_id, ruta_archivo, tipo, visible_cliente, orden, subido_por
-            ) VALUES (?, ?, 'diagnostico', 1, ?, ?)`,
-      [cotizacionId, ruta, orden, subidoPor],
+                cotizacion_id, ruta_archivo, tipo, visible_cliente, orden, subido_por, descripcion
+            ) VALUES (?, ?, 'diagnostico', 1, ?, ?, ?)`,
+      [cotizacionId, ruta, orden, subidoPor, descripcion],
     );
     return result.insertId;
   },
@@ -102,12 +109,20 @@ const imagenService = {
    * @param {Object} conn - Conexión de BD
    * @returns {Promise<Array>} - Lista de rutas guardadas
    */
-  async procesarImagenes(files, cotizacionId, subidoPor, conn) {
+  async procesarImagenes(
+    files,
+    cotizacionId,
+    subidoPor,
+    conn,
+    ordenInicial = 0,
+    descripciones = [],
+  ) {
     const resultados = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const orden = i + 1;
+      const orden = ordenInicial + i + 1;
+      const descripcion = descripciones[i] || null;
 
       const validacion = this.validar(file);
       if (!validacion.valido) {
@@ -122,12 +137,14 @@ const imagenService = {
         orden,
         subidoPor,
         conn,
+        descripcion,
       );
 
       resultados.push({
         imagen_id: imagenId,
         ruta: ruta,
         orden: orden,
+        descripcion,
       });
     }
 

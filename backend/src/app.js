@@ -27,6 +27,8 @@ const consultaPlacaRoutes = require("./routes/consultaPlaca");
 const marcaRoutes = require("./routes/marca");
 const vehiculoRoutes = require("./routes/vehiculo");
 const incidenciaRoutes = require("./routes/incidencias");
+const imagenRoutes = require("./routes/imagenes");
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/citas", citaRoutes);
@@ -42,6 +44,8 @@ app.use("/api/consulta-placa", consultaPlacaRoutes);
 app.use("/api/marcas",marcaRoutes);
 app.use("/api/vehiculos",vehiculoRoutes);
 app.use("/api/incidencias", incidenciaRoutes);
+app.use("/api/imagenes", imagenRoutes);
+
 
 // Ruta de prueba
 app.get("/api/health", (req, res) => {

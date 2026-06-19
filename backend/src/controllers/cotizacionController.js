@@ -1,6 +1,4 @@
 const Cotizacion = require("../models/Cotizacion");
-const Cliente = require("../models/Cliente");
-const Vehiculo = require("../models/Vehiculo");
 const DetalleCotizacion = require("../models/DetalleCotizacion");
 const pdfService = require("../services/pdfService");
 const sharingService = require("../services/sharingService");
@@ -35,6 +33,16 @@ const cotizacionController = {
           message: "Formato de detalles inválido",
         });
       }
+    }
+    let descripcionesImagenes = req.body.descripciones_imagenes;
+    if (typeof descripcionesImagenes === "string") {
+      try {
+        descripcionesImagenes = JSON.parse(descripcionesImagenes);
+      } catch {
+        descripcionesImagenes = [];
+      }
+    } else if (!Array.isArray(descripcionesImagenes)) {
+      descripcionesImagenes = [];
     }
     // Validaciones iniciales
     if (!cliente_id) {
@@ -130,56 +138,17 @@ const cotizacionController = {
       }
 
       // Procesar imágenes (si hay)
-      let imagenesGuardadas = [];
-      if (imagenes.length > 0) {
-        imagenesGuardadas = await imagenService.procesarImagenes(
-          imagenes,
-          cotizacionId,
-          req.user.username,
-          conn,
-        );
-      }
-
-      const cliente = await Cliente.buscarPorId(cliente_id);
-      const vehiculo = await Vehiculo.obtenerPorId(vehiculo_id);
-      // Generar y guardar PDF
-      const cotizacionParaPDF = {
-        cotizacion_id: cotizacionId,
-        numero_cotizacion: numeroCotizacion,
-        cliente_id,
-        cliente_nombre: cliente.nombres + " " + cliente.apellidos,
-        dni_ruc: cliente.dni_ruc,
-        telefono: cliente.telefono,
-        email: cliente.email,
-        vehiculo_id,
-        placa: vehiculo.placa,
-        marca: vehiculo.marca,
-        modelo: vehiculo.modelo,
-        color: vehiculo.color,
-        kilometraje_momento: kilometraje_momento || null,
-        //vehiculo_año: vehiculo.año,
-        subtotal,
-        igv,
-        total,
-        descuento: descuento ?? 0,
-        fecha_emision: new Date().toISOString().split("T")[0],
-        fecha_vencimiento,
-        observaciones,
-        detalles: detallesCalc,
-        estado: "borrador",
-      };
-      const pdfBuffer = await pdfService.generar(cotizacionParaPDF);
-      const pdfPath = await pdfService.guardarArchivo(
-        cotizacionId,
-        numeroCotizacion,
-        pdfBuffer,
-      );
-
-      await Cotizacion.actualizarCotizacion(
-        cotizacionId,
-        { pdf_path: pdfPath },
-        conn,
-      );
+       let imagenesGuardadas = [];
+       if (imagenes.length > 0) {
+         imagenesGuardadas = await imagenService.procesarImagenes(
+           imagenes,
+           cotizacionId,
+           req.user.username,
+           conn,
+           0,
+           descripcionesImagenes,
+         );
+       }
 
       await conn.commit();
 
@@ -190,7 +159,6 @@ const cotizacionController = {
         data: {
           ...nuevaCotizacion,
           imagenes: imagenesGuardadas,
-          pdf_path: pdfPath,
         },
       });
     } catch (error) {
@@ -266,6 +234,22 @@ const cotizacionController = {
       } = req.body;
       console.log("Datos recibidos para actualización:", req.body);
 
+      const cotizacionExistente = await Cotizacion.encontrarPorId(id);
+      if (!cotizacionExistente) {
+        return res.status(404).json({
+          success: false,
+          message: "Cotización no encontrada",
+        });
+      }
+
+      const estadosBloqueados = ["aprobada", "rechazada"];
+      if (estadosBloqueados.includes(cotizacionExistente.estado)) {
+        return res.status(400).json({
+          success: false,
+          message: `No se puede editar una cotización ${cotizacionExistente.estado}`,
+        });
+      }
+
       const conn = await pool.getConnection();
 
       try {
@@ -277,7 +261,7 @@ const cotizacionController = {
             vehiculo_id,
             observaciones,
             estado,
-            fecha_entrega,
+            fecha_entrega: fecha_entrega || null,
           },
           conn,
         );
@@ -300,14 +284,6 @@ const cotizacionController = {
             conn,
           );
         }
-        const cotizacionActualizada = await Cotizacion.encontrarPorId(id);
-        const pdfBuffer = await pdfService.generar(cotizacionActualizada);
-        const pdfPath = await pdfService.guardarArchivo(
-          id,
-          cotizacionActualizada.numero_cotizacion,
-          pdfBuffer,
-        );
-        await Cotizacion.actualizarCotizacion(id, { pdf_path: pdfPath }, conn);
 
         await conn.commit();
 
@@ -428,6 +404,36 @@ const cotizacionController = {
       });
     }
   },
+  async descargarPDF(req, res) {
+    try {
+      const { id } = req.params;
+      const cotizacion = await Cotizacion.encontrarPorId(id);
+
+      if (!cotizacion) {
+        return res.status(404).json({
+          success: false,
+          message: "Cotización no encontrada",
+        });
+      }
+
+      const pdfBuffer = await pdfService.generar(cotizacion);
+      const buffer = Buffer.from(pdfBuffer); // ← convierte Uint8Array → Buffer
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=cotizacion_${id}.pdf`,
+      );
+      res.end(buffer); // ← res.end en vez de res.send, sin interferencia de Express
+    } catch (error) {
+      console.error("Error al descargar PDF:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al descargar el PDF",
+      });
+    }
+  },
+
   async generarPDF(req, res) {
     try {
       const { id } = req.params;
@@ -439,12 +445,14 @@ const cotizacionController = {
           message: "Cotizacion no encontrada",
         });
       }
+
       const pdfBuffer = await pdfService.generar(cotizacion);
+      const buffer = Buffer.from(pdfBuffer); // ← mismo fix
       const filename = `cotizacion_${id}_${Date.now()}.pdf`;
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename=${filename}`);
-      res.send(pdfBuffer);
+      res.end(buffer);
     } catch (error) {
       console.error("Error al generar PDF:", error);
       res.status(500).json({
@@ -541,65 +549,7 @@ const cotizacionController = {
       });
     }
   },
-  async generarYGuardarPDF(req, res) {
-    try {
-      const { id } = req.params;
 
-      const cotizacion = await Cotizacion.encontrarPorId(id);
-
-      if (!cotizacion) {
-        return res.status(404).json({
-          success: false,
-          message: "Cotización no encontrada",
-        });
-      }
-
-      const rutaPDF = await pdfService.guardarArchivo(cotizacion);
-
-      await Cotizacion.actualizarCotizacion(id, { pdf_path: rutaPDF });
-
-      res.json({
-        success: true,
-        message: "PDF generado exitosamente",
-        data: { ruta: rutaPDF },
-      });
-    } catch (error) {
-      console.error("Error al generar PDF:", error);
-      res.status(500).json({
-        success: false,
-        message: "Error al generar el PDF",
-      });
-    }
-  },
-  async descargarPDF(req, res) {
-    try {
-      const { id } = req.params;
-
-      const cotizacion = await Cotizacion.encontrarPorId(id);
-
-      if (!cotizacion) {
-        return res.status(404).json({
-          success: false,
-          message: "Cotización no encontrada",
-        });
-      }
-
-      const pdfBuffer = await pdfService.generar(cotizacion);
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=cotizacion_${id}.pdf`,
-      );
-      res.send(pdfBuffer);
-    } catch (error) {
-      console.error("Error al descargar PDF:", error);
-      res.status(500).json({
-        success: false,
-        message: "Error al descargar el PDF",
-      });
-    }
-  },
   async compartirWhatsApp(req, res) {
     try {
       const { id } = req.params;

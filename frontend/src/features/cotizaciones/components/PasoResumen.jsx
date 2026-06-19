@@ -1,35 +1,24 @@
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
+import {
+  calcularFechaDesdeDias,
+  calcularDiasDesdeFecha,
+} from "../utils/fechaEntrega";
+
 
 const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
   const [fechaEntrega, setFechaEntrega] = useState(data.fecha_entrega || "");
   const [diasEstimados, setDiasEstimados] = useState(data.dias_estimados || "");
   const [mostrarModalPlantilla, setMostrarModalPlantilla] = useState(false);
   const [nombrePlantilla, setNombrePlantilla] = useState("");
-
-  // Calcular fecha a partir de días
-  const calcularFechaDesdeDias = (dias) => {
-    if (!dias || dias <= 0) return "";
-    const fecha = new Date();
-    fecha.setDate(fecha.getDate() + parseInt(dias));
-    return fecha.toISOString().split("T")[0];
-  };
-
-  // Calcular días a partir de fecha
-  const calcularDiasDesdeFecha = (fecha) => {
-    if (!fecha) return "";
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const fechaEntregaObj = new Date(fecha);
-    fechaEntregaObj.setHours(0, 0, 0, 0);
-    const diffTime = fechaEntregaObj - hoy;
-    const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDias > 0 ? diffDias : "";
-  };
-
   // Cuando cambian los días, actualizar la fecha
   const handleDiasChange = (e) => {
-    const dias = e.target.value;
+    let dias = e.target.value;
+
+    if (dias && parseInt(dias) > 90) {
+      dias = "90";
+    }
+
     setDiasEstimados(dias);
 
     if (dias && parseInt(dias) > 0) {
@@ -47,7 +36,6 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
       });
     }
   };
-
   // Cuando cambia la fecha, actualizar los días
   const handleFechaChange = (e) => {
     const fecha = e.target.value;
@@ -163,6 +151,7 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
                 onChange={handleDiasChange}
                 placeholder="Ej: 3"
                 min="1"
+                max="90"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-xs text-gray-400 mt-1">
