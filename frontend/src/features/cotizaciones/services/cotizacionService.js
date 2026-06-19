@@ -42,7 +42,7 @@ const cotizacionService = {
 
   // Descargar PDF
   async descargarPDF(id) {
-    const response = await api.get(`/cotizaciones/${id}/pdf`, {
+    const response = await api.get(`/cotizaciones/${id}/descargar-pdf`, {
       responseType: "blob",
     });
     return response;

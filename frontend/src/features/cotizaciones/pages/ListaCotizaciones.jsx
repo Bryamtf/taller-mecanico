@@ -8,15 +8,19 @@ import {
   TrashIcon,
   ShareIcon,
   DocumentArrowDownIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import Swal from "sweetalert2";
 import cotizacionService from "../services/cotizacionService";
+import { ESTADOS_BLOQUEADOS } from "../utils/estados";
+import { formatFecha } from "../utils/fechaEntrega";
 
 const ListaCotizaciones = () => {
   const navigate = useNavigate();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [descargandoId, setDescargandoId] = useState(null);
 
   useEffect(() => {
     cargarCotizaciones();
@@ -58,18 +62,21 @@ const ListaCotizaciones = () => {
   };
 
   const handleDescargarPDF = async (id, numero) => {
+    setDescargandoId(id);
     try {
       const response = await cotizacionService.descargarPDF(id);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `cotizacion_${numero}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (error) {
       Swal.fire("Error", "No se pudo descargar el PDF", "error");
+    } finally {
+      setDescargandoId(null);
     }
   };
 
@@ -219,9 +226,7 @@ const ListaCotizaciones = () => {
               <div className="flex justify-between items-center mb-3 text-sm">
                 <span className="text-gray-500">
                   {cotizacion.fecha_emision
-                    ? new Date(cotizacion.fecha_emision).toLocaleDateString(
-                        "es-PE",
-                      )
+                    ? formatFecha(cotizacion.fecha_emision)
                     : "Sin fecha"}
                 </span>
                 <span className="font-bold text-blue-600">
@@ -243,15 +248,19 @@ const ListaCotizaciones = () => {
                 >
                   <EyeIcon className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() =>
-                    navigate(`/cotizaciones/${cotizacion.cotizacion_id}/editar`)
-                  }
-                  className="text-gray-500 hover:text-brand transition-colors"
-                  title="Editar"
-                >
-                  <PencilIcon className="w-5 h-5" />
-                </button>
+                {!ESTADOS_BLOQUEADOS.includes(cotizacion.estado) && (
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/cotizaciones/${cotizacion.cotizacion_id}/editar`,
+                      )
+                    }
+                    className="text-gray-500 hover:text-brand transition-colors"
+                    title="Editar"
+                  >
+                    <PencilIcon className="w-5 h-5" />
+                  </button>
+                )}
                 <button
                   onClick={() =>
                     handleDescargarPDF(
@@ -259,10 +268,15 @@ const ListaCotizaciones = () => {
                       cotizacion.numero_cotizacion || cotizacion.cotizacion_id,
                     )
                   }
-                  className="text-gray-500 hover:text-red-600 transition-colors"
+                  disabled={descargandoId === cotizacion.cotizacion_id}
+                  className="text-gray-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Descargar PDF"
                 >
-                  <DocumentArrowDownIcon className="w-5 h-5" />
+                  {descargandoId === cotizacion.cotizacion_id ? (
+                    <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <DocumentArrowDownIcon className="w-5 h-5" />
+                  )}
                 </button>
                 <button
                   onClick={() =>

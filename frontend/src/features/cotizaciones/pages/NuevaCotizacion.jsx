@@ -37,10 +37,6 @@ const NuevaCotizacion = () => {
       return nuevo;
     });
   };
-  const handleSubmitFinalWizard = async (imagenesParam = null) => {
-    const imagenesFinales = imagenesParam || formData.imagenes;
-    await handleSubmitFinal(imagenesFinales);
-  };
   const handleNext = () => {
     if (pasoActual < 5) {
       setPasoActual(pasoActual + 1);
@@ -73,6 +69,8 @@ const NuevaCotizacion = () => {
       submitData.append("cliente_id", formData.cliente_id);
       submitData.append("vehiculo_id", formData.vehiculo_id);
       submitData.append("observaciones", formData.observaciones || "");
+      submitData.append("fecha_entrega", formData.fecha_entrega || "");
+      submitData.append("descuento", formData.descuento_global || 0);
 
       const detallesParaEnviar = formData.detalles.map((d) => ({
         descripcion_custom: d.descripcion_custom,
@@ -85,7 +83,14 @@ const NuevaCotizacion = () => {
 
       // Imágenes - usar las que vienen por parámetro
       if (imagenesParaEnviar && imagenesParaEnviar.length > 0) {
-        imagenesParaEnviar.forEach((imagen, index) => {
+        const descripcionesImagenes = imagenesParaEnviar.map(
+          (img) => img.descripcion || "",
+        );
+        submitData.append(
+          "descripciones_imagenes",
+          JSON.stringify(descripcionesImagenes),
+        );
+        imagenesParaEnviar.forEach((imagen) => {
           submitData.append("imagenes", imagen.file);
         });
       } else {

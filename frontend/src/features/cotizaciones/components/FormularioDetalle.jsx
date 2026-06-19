@@ -24,13 +24,17 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
   const buscarArticulos = async () => {
     try {
       const response = await articuloService.buscar(busqueda);
-      setArticulos(response.data || []);
+      const data = (response.data || []).map((art) => ({
+        ...art,
+        precio_venta: Number(art.precio_venta) || 0,
+        stock_actual: Number(art.stock_actual) || 0,
+      }));
+      setArticulos(data);
       setMostrarLista(true);
     } catch (error) {
       console.error("Error al buscar artículos:", error);
     }
   };
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -59,12 +63,11 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
       ...formData,
       articulo_id: articulo.articulo_id,
       descripcion_custom: articulo.nombre,
-      precio_unitario: articulo.precio_venta || 0,
+      precio_unitario: Number(articulo.precio_venta) || 0,
     });
     setMostrarLista(false);
     setBusqueda(articulo.nombre);
   };
-
   const handleSubmit = (e) => {
     e.preventDefault();
 
