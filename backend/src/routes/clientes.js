@@ -1,12 +1,14 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
+const clienteController = require('../controllers/clienteController');
 
-router.get("/", (req, res) => {
-  res.json({ message: "Ruta de clientes funcionando" });
-});
+// Buscar debe ir antes de /:id para evitar conflicto de rutas
+router.get('/buscar', clienteController.buscarClientes);
 
-router.post("/", (req, res) => {
-  res.json({ message: "Crear nuevo cliente", data: req.body });
-});
+router.get('/',     clienteController.listarClientes);
+router.get('/:id',  clienteController.obtenerCliente);
+router.post('/',    clienteController.crearCliente);
+router.put('/:id',  clienteController.actualizarCliente);
+router.patch('/:id/estado', clienteController.cambiarEstadoCliente);
 
 module.exports = router;

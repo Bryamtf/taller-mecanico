@@ -1,16 +1,11 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
+const citaController = require('../controllers/citaController');
 
-router.get("/", (req, res) => {
-  res.json({ message: "Ruta de citas funcionando" });
-});
+// Ruta GET: /api/citas
+router.get('/', citaController.obtenerCitas);
 
-router.post("/", (req, res) => {
-  res.json({ message: "Crear nueva cita", data: req.body });
-});
+// Ruta POST: /api/citas
+router.post('/', citaController.crearNuevaCita); 
 
-router.get("/:id", (req, res) => {
-  res.json({ message: `Obtener cita ${req.params.id}` });
-});
-
-module.exports = router; 
+module.exports = router;

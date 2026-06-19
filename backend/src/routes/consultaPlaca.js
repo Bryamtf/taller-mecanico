@@ -1,12 +1,7 @@
-const express = require("express");
-const router = express.Router();
+const express = require('express');
+const router  = express.Router();
+const { consultarPlacaExterna } = require('../controllers/vehiculoController');
 
-router.post("/", (req, res) => {
-  const { placa } = req.body;
-  res.json({
-    message: "Consulta de placa (implementar después con json.pe)",
-    placa: placa,
-  });
-});
+router.post('/', consultarPlacaExterna);
 
 module.exports = router;
