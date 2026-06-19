@@ -61,7 +61,7 @@ const Cotizacion = {
                 c.numero_cotizacion,
                 CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
                 cli.dni_ruc, cli.telefono, cli.email,
-                v.placa, v.marca, v.modelo, v.color
+                v.placa, v.marca, v.modelo, v.color, v.anio, v.vin
          FROM Cotizacion c
          JOIN Cliente cli ON c.cliente_id = cli.cliente_id
          JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
@@ -74,7 +74,7 @@ const Cotizacion = {
     const [detalles] = await pool.execute(
       `SELECT dc.*, 
                 a.nombre as articulo_nombre, a.codigo_interno,
-                m.nombre as marca_nombre
+                m.nombre as marca
          FROM Detalle_cotizacion dc
          LEFT JOIN Articulos a ON dc.articulo_id = a.articulo_id
          LEFT JOIN Marca_Repuesto m ON dc.marca_id = m.marca_id
