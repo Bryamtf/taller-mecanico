@@ -14,6 +14,10 @@ router.get("/public/:token", cotizacionController.obtenerPorToken);
 // Público (con token, sin auth)
 router.get("/:id/pdf", cotizacionController.descargarPDF);
 
+
+router.post("/:id/compartir/whatsapp", cotizacionController.compartirWhatsApp);
+router.post("/:id/compartir/email", cotizacionController.compartirEmail);
+
 // Todas requieren autenticación
 router.use(authMiddleware);
 
@@ -102,7 +106,4 @@ router.post(
   checkPermiso("ver_cotizaciones"),
   cotizacionController.compartir,
 );
-
-router.post("/:id/compartir/whatsapp", cotizacionController.compartirWhatsApp);
-router.post("/:id/compartir/email", cotizacionController.compartirEmail);
 module.exports = router;

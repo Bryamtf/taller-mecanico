@@ -63,6 +63,10 @@ const cotizacionService = {
     });
     return response.data;
   },
+  async obtenerPorToken(token) {
+    const response = await api.get(`/cotizaciones/public/${token}`);
+    return response.data;
+  },
 };
 
 export default cotizacionService;
