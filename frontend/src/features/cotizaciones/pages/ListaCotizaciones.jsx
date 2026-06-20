@@ -14,6 +14,7 @@ import Swal from "sweetalert2";
 import cotizacionService from "../services/cotizacionService";
 import { ESTADOS_BLOQUEADOS } from "../utils/estados";
 import { formatFecha } from "../utils/fechaEntrega";
+import ModalCompartir from "../components/ModalCompartir";
 
 const ListaCotizaciones = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const ListaCotizaciones = () => {
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [descargandoId, setDescargandoId] = useState(null);
+  const [cotizacionParaCompartir, setCotizacionParaCompartir] = useState(null);
 
   useEffect(() => {
     cargarCotizaciones();
@@ -280,9 +282,7 @@ const ListaCotizaciones = () => {
                 </button>
                 <button
                   onClick={() =>
-                    navigate(
-                      `/cotizaciones/${cotizacion.cotizacion_id}/compartir`,
-                    )
+                    setCotizacionParaCompartir(cotizacion.cotizacion_id)
                   }
                   className="text-gray-500 hover:text-green-600 transition-colors"
                   title="Compartir"
@@ -306,6 +306,12 @@ const ListaCotizaciones = () => {
             </div>
           ))}
         </div>
+      )}
+      {cotizacionParaCompartir && (
+        <ModalCompartir
+          cotizacionId={cotizacionParaCompartir}
+          onClose={() => setCotizacionParaCompartir(null)}
+        />
       )}
     </div>
   );
