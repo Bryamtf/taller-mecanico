@@ -9,17 +9,34 @@ const PasoDetalles = ({ data, onNext, onPrevious, onUpdate }) => {
   const [descuentoGlobal, setDescuentoGlobal] = useState(
     data.descuento_global || 0,
   );
+  const [itemEditandoIndex, setItemEditandoIndex] = useState(null);
 
-  const handleAgregarDetalle = (nuevoDetalle) => {
-    setDetalles([...detalles, nuevoDetalle]);
+  const handleGuardarDetalle = (item) => {
+    if (itemEditandoIndex !== null) {
+      const nuevosDetalles = [...detalles];
+      nuevosDetalles[itemEditandoIndex] = item;
+      setDetalles(nuevosDetalles);
+      setItemEditandoIndex(null);
+    } else {
+      setDetalles([...detalles, item]);
+    }
     setMostrarFormulario(false);
+  };
+
+  const handleEditarDetalle = (index) => {
+    setItemEditandoIndex(index);
+    setMostrarFormulario(true);
+  };
+
+  const handleCancelarFormulario = () => {
+    setMostrarFormulario(false);
+    setItemEditandoIndex(null);
   };
 
   const handleEliminarDetalle = (index) => {
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     setDetalles(nuevosDetalles);
   };
-
   const handleSubmit = () => {
     if (detalles.length === 0) {
       alert("Debe agregar al menos un item a la cotización");
@@ -65,13 +82,21 @@ const PasoDetalles = ({ data, onNext, onPrevious, onUpdate }) => {
       {/* Formulario */}
       {mostrarFormulario && (
         <FormularioDetalle
-          onAgregar={handleAgregarDetalle}
-          onCancelar={() => setMostrarFormulario(false)}
+          key={itemEditandoIndex ?? "nuevo"}
+          onAgregar={handleGuardarDetalle}
+          onCancelar={handleCancelarFormulario}
+          itemEditar={
+            itemEditandoIndex !== null ? detalles[itemEditandoIndex] : null
+          }
         />
       )}
 
       {/* Tabla de detalles */}
-      <TablaDetalles detalles={detalles} onEliminar={handleEliminarDetalle} />
+      <TablaDetalles
+        detalles={detalles}
+        onEliminar={handleEliminarDetalle}
+        onEditar={handleEditarDetalle}
+      />
 
       {/* Resumen parcial */}
       {detalles.length > 0 && (

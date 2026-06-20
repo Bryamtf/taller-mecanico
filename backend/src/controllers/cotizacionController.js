@@ -71,6 +71,25 @@ const cotizacionController = {
       });
     }
 
+    let subtotal = 0;
+
+    const detallesCalc = detalles.map((d) => {
+      const subtotalItem = d.cantidad * d.precio_unitario - (d.descuento || 0);
+      subtotal += subtotalItem;
+      return { ...d, subtotal: subtotalItem };
+    });
+
+    const descuentoGlobal = parseFloat(descuento) || 0;
+    if (descuentoGlobal > subtotal) {
+      return res.status(400).json({
+        success: false,
+        message: "El descuento no puede ser mayor al subtotal",
+      });
+    }
+
+    const igv = (subtotal - descuentoGlobal) * 0.18;
+    const total = subtotal - descuentoGlobal + igv;
+
     let numeroCotizacion;
     try {
       numeroCotizacion = await generarNumeroCotizacion();
@@ -81,16 +100,6 @@ const cotizacionController = {
         error: error.message,
       });
     }
-
-    let subtotal = 0;
-    const detallesCalc = detalles.map((d) => {
-      const subtotalItem = d.cantidad * d.precio_unitario - (d.descuento || 0);
-      subtotal += subtotalItem;
-      return { ...d, subtotal: subtotalItem };
-    });
-
-    const igv = subtotal * 0.18;
-    const total = subtotal + igv;
 
     let cotizacionId = null;
     const conn = await pool.getConnection();
@@ -108,7 +117,7 @@ const cotizacionController = {
           nombre_modelo: nombre_modelo || null,
           kilometraje_momento,
           subtotal,
-          descuento: descuento ?? 0,
+          descuento: descuentoGlobal,
           igv,
           total,
           fecha_emision: new Date().toISOString().split("T")[0],
@@ -138,17 +147,17 @@ const cotizacionController = {
       }
 
       // Procesar imágenes (si hay)
-       let imagenesGuardadas = [];
-       if (imagenes.length > 0) {
-         imagenesGuardadas = await imagenService.procesarImagenes(
-           imagenes,
-           cotizacionId,
-           req.user.username,
-           conn,
-           0,
-           descripcionesImagenes,
-         );
-       }
+      let imagenesGuardadas = [];
+      if (imagenes.length > 0) {
+        imagenesGuardadas = await imagenService.procesarImagenes(
+          imagenes,
+          cotizacionId,
+          req.user.username,
+          conn,
+          0,
+          descripcionesImagenes,
+        );
+      }
 
       await conn.commit();
 
@@ -250,6 +259,26 @@ const cotizacionController = {
         });
       }
 
+      let subtotal = 0;
+      const detallesCalc = (detalles || []).map((d) => {
+        const subtotalItem =
+          d.cantidad * d.precio_unitario - (d.descuento || 0);
+        subtotal += subtotalItem;
+        return { ...d, subtotal: subtotalItem };
+      });
+
+      const descuentoGlobal = parseFloat(cotizacionExistente.descuento) || 0;
+      if (descuentoGlobal > subtotal) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "El descuento ya no puede aplicarse: supera el nuevo subtotal de la cotización",
+        });
+      }
+
+      const igv = (subtotal - descuentoGlobal) * 0.18;
+      const total = subtotal - descuentoGlobal + igv;
+
       const conn = await pool.getConnection();
 
       try {
@@ -262,11 +291,15 @@ const cotizacionController = {
             observaciones,
             estado,
             fecha_entrega: fecha_entrega || null,
+            subtotal,
+            descuento: descuentoGlobal,
+            igv,
+            total,
           },
           conn,
         );
         await DetalleCotizacion.eliminarPorCotizacionId(id, conn);
-        for (const detalle of detalles) {
+        for (const detalle of detallesCalc) {
           await DetalleCotizacion.crear(
             {
               cotizacion_id: id,
@@ -276,9 +309,7 @@ const cotizacionController = {
               cantidad: detalle.cantidad,
               precio_unitario: detalle.precio_unitario,
               descuento: detalle.descuento || 0,
-              subtotal:
-                detalle.cantidad * detalle.precio_unitario -
-                (detalle.descuento || 0),
+              subtotal: detalle.subtotal,
               es_servicio: detalle.es_servicio || 0,
             },
             conn,
@@ -624,10 +655,19 @@ const cotizacionController = {
         });
       }
 
+      cotizacion.total = parseFloat(cotizacion.total) || 0;
+      cotizacion.subtotal = parseFloat(cotizacion.subtotal) || 0;
+      cotizacion.igv = parseFloat(cotizacion.igv) || 0;
+      cotizacion.descuento = parseFloat(cotizacion.descuento) || 0;
+
       // Generar token si no existe
       if (!cotizacion.token_publico) {
         await Cotizacion.generarTokenPublico(id);
         cotizacion = await Cotizacion.encontrarPorId(id);
+        cotizacion.total = parseFloat(cotizacion.total) || 0;
+        cotizacion.subtotal = parseFloat(cotizacion.subtotal) || 0;
+        cotizacion.igv = parseFloat(cotizacion.igv) || 0;
+        cotizacion.descuento = parseFloat(cotizacion.descuento) || 0;
       }
 
       const linkPublico = sharingService.generarLinkPublico(
@@ -649,6 +689,7 @@ const cotizacionController = {
       res.status(500).json({
         success: false,
         message: "Error al enviar el email",
+        error: error.message,
       });
     }
   },

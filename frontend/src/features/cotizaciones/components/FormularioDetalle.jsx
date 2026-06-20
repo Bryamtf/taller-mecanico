@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from "react";
 import articuloService from "../services/articuloService";
 
-const FormularioDetalle = ({ onAgregar, onCancelar }) => {
+const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
   const [formData, setFormData] = useState({
-    descripcion_custom: "",
-    articulo_id: "",
-    cantidad: 1,
-    precio_unitario: 0,
-    descuento: 0,
-    es_servicio: 0,
+    descripcion_custom: itemEditar?.descripcion_custom || "",
+    articulo_id: itemEditar?.articulo_id || "",
+    cantidad: itemEditar?.cantidad ?? 1,
+    precio_unitario: itemEditar?.precio_unitario ?? 0,
+    descuento: itemEditar?.descuento ?? 0,
+    es_servicio: itemEditar?.es_servicio ?? 0,
   });
 
   const [articulos, setArticulos] = useState([]);
-  const [busqueda, setBusqueda] = useState("");
+  const [busqueda, setBusqueda] = useState(
+    itemEditar?.descripcion_custom || "",
+  );
   const [mostrarLista, setMostrarLista] = useState(false);
 
   useEffect(() => {
@@ -35,17 +37,11 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
       console.error("Error al buscar artículos:", error);
     }
   };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (type === "number") {
-      // Si el campo está vacío, poner 0
-      const numValue = value === "" ? 0 : parseFloat(value);
-      setFormData({
-        ...formData,
-        [name]: isNaN(numValue) ? 0 : numValue,
-      });
-    } else if (type === "checkbox") {
+    if (type === "checkbox") {
       setFormData({
         ...formData,
         [name]: checked ? 1 : 0,
@@ -76,9 +72,9 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
       return;
     }
 
-    const cantidad = formData.cantidad || 0;
-    const precioUnitario = formData.precio_unitario || 0;
-    const descuento = formData.descuento || 0;
+    const cantidad = parseFloat(formData.cantidad) || 0;
+    const precioUnitario = parseFloat(formData.precio_unitario) || 0;
+    const descuento = parseFloat(formData.descuento) || 0;
 
     if (cantidad <= 0) {
       alert("La cantidad debe ser mayor a 0");
@@ -100,7 +96,6 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
       subtotal: subtotal,
     });
 
-    // Resetear formulario
     setFormData({
       descripcion_custom: "",
       articulo_id: "",
@@ -114,7 +109,9 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
 
   return (
     <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-lg mb-4">
-      <h3 className="font-semibold text-gray-700 mb-3">Agregar Item</h3>
+      <h3 className="font-semibold text-gray-700 mb-3">
+        {itemEditar ? "Editar Item" : "Agregar Item"}
+      </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Descripción */}
@@ -150,7 +147,7 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
                   >
                     <p className="font-medium text-sm">{art.nombre}</p>
                     <p className="text-xs text-gray-500">
-                      Precio: S/ {art.precio_venta?.toFixed(2)} | Stock:{" "}
+                      Precio: S/ {art.precio_venta.toFixed(2)} | Stock:{" "}
                       {art.stock_actual}
                     </p>
                   </div>
@@ -168,8 +165,8 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
             name="cantidad"
             value={formData.cantidad ?? 1}
             onChange={handleChange}
-            step="0.01"
-            min="0.01"
+            step="1"
+            min="0"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
@@ -243,7 +240,7 @@ const FormularioDetalle = ({ onAgregar, onCancelar }) => {
           type="submit"
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
         >
-          Agregar
+          {itemEditar ? "Guardar Cambios" : "Agregar"}
         </button>
       </div>
     </form>
