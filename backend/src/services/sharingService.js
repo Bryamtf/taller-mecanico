@@ -1,10 +1,12 @@
 const nodemailer = require("nodemailer");
 const pdfService = require("./pdfService");
-const path = require("path");
+const empresa = require("../config/empresa");
+const formatFecha = require("../utils/formatFecha");
 
 class SharingService {
   constructor() {
-    // Configurar email
+    this.empresa = empresa;
+
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: process.env.SMTP_PORT || 587,
@@ -21,20 +23,19 @@ class SharingService {
    * Usando API de WhatsApp Business o link directo
    */
   async enviarWhatsApp(telefono, linkPublico, cotizacion) {
-    // Opción 1: Link directo a WhatsApp (abre el chat)
+    const total = parseFloat(cotizacion.total) || 0;
+
     const mensaje =
       `*AUTONORT PERU SAC*\n\n` +
       `Hola ${cotizacion.cliente_nombre}, adjuntamos la cotización N° ${cotizacion.cotizacion_id}\n\n` +
-      `Monto total: S/ ${cotizacion.total.toFixed(2)}\n\n` +
+      `Monto total: S/ ${total.toFixed(2)}\n\n` +
       `Ver detalles: ${linkPublico}\n\n` +
       `Agradecemos su preferencia.`;
 
     const encodedMsg = encodeURIComponent(mensaje);
     const whatsappLink = `https://wa.me/${telefono}?text=${encodedMsg}`;
 
-    // Si tienes API oficial de WhatsApp Business
     if (process.env.WHATSAPP_API_TOKEN) {
-      // Implementar envío por API
       const response = await fetch(
         "https://graph.facebook.com/v17.0/me/messages",
         {
@@ -56,7 +57,7 @@ class SharingService {
                   parameters: [
                     { type: "text", text: cotizacion.cliente_nombre },
                     { type: "text", text: cotizacion.cotizacion_id.toString() },
-                    { type: "text", text: `S/ ${cotizacion.total.toFixed(2)}` },
+                    { type: "text", text: `S/ ${total.toFixed(2)}` },
                     { type: "text", text: linkPublico },
                   ],
                 },
@@ -73,7 +74,6 @@ class SharingService {
       };
     }
 
-    // Opción 2: Solo retornar el link (el usuario hace clic manualmente)
     return {
       enviado: "manual",
       link: whatsappLink,
@@ -86,14 +86,14 @@ class SharingService {
    */
   async enviarEmail(email, linkPublico, cotizacion) {
     try {
-      // Generar PDF
+      const total = parseFloat(cotizacion.total) || 0;
+
       const pdfBuffer = await pdfService.generar(cotizacion);
 
-      // Contenido del email
       const html = `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background-color: #1a56db; padding: 20px; text-align: center;">
-                        <h1 style="color: white; margin: 0;">AUTONORT PERU SAC</h1>
+                        <h1 style="color: white; margin: 0;">${this.empresa.nombre}</h1>
                     </div>
                     
                     <div style="padding: 20px;">
@@ -102,10 +102,10 @@ class SharingService {
                         <p>Adjuntamos la cotización solicitada para su vehículo.</p>
                         
                         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <p><strong>N° Cotización:</strong> ${cotizacion.cotizacion_id}</p>
-                            <p><strong>Fecha:</strong> ${cotizacion.fecha_emision}</p>
+                            <p><strong>N° Cotización:</strong> ${cotizacion.numero_cotizacion || cotizacion.cotizacion_id}</p>
+                            <p><strong>Fecha:</strong> ${formatFecha(cotizacion.fecha_emision)}</p>
                             <p><strong>Vehículo:</strong> ${cotizacion.marca} ${cotizacion.modelo} - ${cotizacion.placa}</p>
-                            <p><strong>Monto Total:</strong> S/ ${cotizacion.total.toFixed(2)}</p>
+                            <p><strong>Monto Total:</strong> S/ ${total.toFixed(2)}</p>
                             <p><strong>Estado:</strong> ${cotizacion.estado}</p>
                         </div>
                         
@@ -119,19 +119,18 @@ class SharingService {
                         <hr style="margin: 30px 0;">
                         
                         <p style="color: #6b7280; font-size: 12px;">
-                            ${this.empresa?.nombre || "AUTONORT PERU SAC"}<br>
-                            ${this.empresa?.direccion || "Av. Principal 123, Lima - Perú"}<br>
-                            Tel: ${this.empresa?.telefono || "(01) 234-5678"}
+                            ${this.empresa.nombre}<br>
+                            ${this.empresa.direccion}<br>
+                            Tel: ${this.empresa.telefono}
                         </p>
                     </div>
                 </div>
             `;
 
-      // Enviar email
       const info = await this.transporter.sendMail({
-        from: `"${this.empresa?.nombre || "AUTONORT PERU SAC"}" <${process.env.EMAIL_USER}>`,
+        from: `"${this.empresa.nombre}" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: `Cotización N° ${cotizacion.cotizacion_id} - AUTONORT PERU SAC`,
+        subject: `Cotización N° ${cotizacion.numero_cotizacion || cotizacion.cotizacion_id} - ${this.empresa.nombre}`,
         html: html,
         attachments: [
           {
