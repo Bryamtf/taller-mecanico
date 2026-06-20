@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import SelectorBuscable from "@/components/SelectorBuscable";
 import clienteService from "../services/clienteService";
 
 const PasoCliente = ({ data, onNext, onUpdate }) => {
@@ -65,20 +66,23 @@ const PasoCliente = ({ data, onNext, onUpdate }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Seleccionar Cliente *
           </label>
-          <select
-            value={data.cliente_id || ""}
-            onChange={handleClienteChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          >
-            <option value="">-- Seleccione un cliente --</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.cliente_id} value={cliente.cliente_id}>
-                {cliente.nombres} {cliente.apellidos} -{" "}
-                {cliente.dni_ruc || "Sin DNI"}
-              </option>
-            ))}
-          </select>
+          <SelectorBuscable
+            opciones={clientes}
+            valorSeleccionado={data.cliente_id || null}
+            onSeleccionar={(cliente) =>
+              onUpdate({
+                cliente_id: cliente.cliente_id,
+                cliente_nombre: `${cliente.nombres} ${cliente.apellidos}`,
+                telefono: cliente.telefono || "",
+                email: cliente.email || "",
+              })
+            }
+            getLabel={(c) =>
+              `${c.nombres} ${c.apellidos} - ${c.dni_ruc || "Sin DNI"}`
+            }
+            getValue={(c) => c.cliente_id}
+            placeholder="-- Seleccione un cliente --"
+          />
         </div>
 
         {/* Datos del cliente (solo lectura) */}
