@@ -1,6 +1,9 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
+const { obtenerPermisosRol } = require("../middleware/authMiddleware");
+
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 const authController = {
   async login(req, res) {
@@ -15,7 +18,7 @@ const authController = {
       }
 
       const [rows] = await pool.execute(
-        `SELECT u.username, u.password_hash, u.nombre_completo, u.activo, 
+        `SELECT u.username, u.email, u.password_hash, u.nombre_completo, u.activo, u.eliminado,
                         u.rol_id, r.nombre as rol_nombre
                  FROM Usuario u
                  JOIN Rol r ON u.rol_id = r.rol_id
@@ -32,7 +35,7 @@ const authController = {
 
       const user = rows[0];
 
-      if (!user.activo) {
+      if (!user.activo || user.eliminado) {
         return res.status(401).json({
           success: false,
           message: "Usuario inactivo. Contacte al administrador.",
@@ -63,6 +66,8 @@ const authController = {
         { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
       );
 
+      const permisos = await obtenerPermisosRol(user.rol_id);
+
       res.json({
         success: true,
         message: "Login exitoso",
@@ -70,8 +75,12 @@ const authController = {
           token,
           usuario: {
             username: user.username,
+            email: user.email,
             nombre_completo: user.nombre_completo,
+            rol_id: user.rol_id,
+            rol_nombre: user.rol_nombre,
             rol: user.rol_nombre,
+            permisos,
           },
         },
       });
@@ -113,8 +122,15 @@ const authController = {
         });
       }
 
+      if (!PASSWORD_REGEX.test(password_nueva)) {
+        return res.status(400).json({
+          success: false,
+          message: "La nueva password debe tener 8 caracteres, mayuscula, minuscula y numero",
+        });
+      }
+
       const [rows] = await pool.execute(
-        `SELECT password_hash FROM Usuario WHERE username = ?`,
+        `SELECT password_hash FROM Usuario WHERE username = ? AND activo = 1 AND eliminado = 0`,
         [username],
       );
 
