@@ -1,0 +1,14 @@
+{
+  "name": "autonort-notifications",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "resend": "^4.8.0"
+  }
+}
