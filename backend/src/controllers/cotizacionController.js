@@ -187,18 +187,28 @@ const cotizacionController = {
       conn.release();
     }
   },
+
   async listar(req, res) {
     try {
-      const { estado, cliente_id, es_modelo } = req.query;
+      const { estado, cliente_id, es_modelo, busqueda, page, pageSize } = req.query;
 
-      const cotizaciones = await Cotizacion.listarCotizaciones({
+      const resultado = await Cotizacion.listarCotizaciones({
         estado,
         cliente_id,
         es_modelo,
+        busqueda,
+        page: page ? parseInt(page) : 1,
+        pageSize: pageSize ? parseInt(pageSize) : 20,
       });
       res.json({
         success: true,
-        data: cotizaciones,
+        data: resultado.data,
+        pagination: {
+          total: resultado.total,
+          page: resultado.page,
+          pageSize: resultado.pageSize,
+          totalPages: resultado.totalPages,
+        }
       });
     } catch (error) {
       console.error("Error al listar cotizaciones:", error);
@@ -208,6 +218,7 @@ const cotizacionController = {
       });
     }
   },
+
   async obtener(req, res) {
     try {
       const { id } = req.params;

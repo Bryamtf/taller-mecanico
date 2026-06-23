@@ -3,8 +3,8 @@ import api from '@/lib/axios';
 
 const cotizacionService = {
   // Obtener todas las cotizaciones
-  async listar() {
-    const response = await api.get("/cotizaciones");
+  async listar(params = {}) {
+    const response = await api.get("/cotizaciones", { params });
     return response.data;
   },
 
