@@ -1,4 +1,3 @@
-const nodemailer = require("nodemailer");
 const pdfService = require("./pdfService");
 const empresa = require("../config/empresa");
 const formatFecha = require("../utils/formatFecha");
@@ -6,28 +5,14 @@ const formatFecha = require("../utils/formatFecha");
 class SharingService {
   constructor() {
     this.empresa = empresa;
-
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
   }
 
-  /**
-   * Enviar cotización por WhatsApp
-   * Usando API de WhatsApp Business o link directo
-   */
   async enviarWhatsApp(telefono, linkPublico, cotizacion) {
     const total = parseFloat(cotizacion.total) || 0;
 
     const mensaje =
-      `*AUTONORT PERU SAC*\n\n` +
-      `Hola ${cotizacion.cliente_nombre}, adjuntamos la cotización N° ${cotizacion.cotizacion_id}\n\n` +
+      `*${this.empresa.nombre}*\n\n` +
+      `Hola ${cotizacion.cliente_nombre}, adjuntamos la cotización N° ${cotizacion.numero_cotizacion || cotizacion.cotizacion_id}\n\n` +
       `Monto total: S/ ${total.toFixed(2)}\n\n` +
       `Ver detalles: ${linkPublico}\n\n` +
       `Agradecemos su preferencia.`;
@@ -56,7 +41,12 @@ class SharingService {
                   type: "body",
                   parameters: [
                     { type: "text", text: cotizacion.cliente_nombre },
-                    { type: "text", text: cotizacion.cotizacion_id.toString() },
+                    {
+                      type: "text",
+                      text: (
+                        cotizacion.numero_cotizacion || cotizacion.cotizacion_id
+                      ).toString(),
+                    },
                     { type: "text", text: `S/ ${total.toFixed(2)}` },
                     { type: "text", text: linkPublico },
                   ],
@@ -81,80 +71,55 @@ class SharingService {
     };
   }
 
-  /**
-   * Enviar cotización por Email con PDF adjunto
-   */
   async enviarEmail(email, linkPublico, cotizacion) {
     try {
       const total = parseFloat(cotizacion.total) || 0;
 
+      // Generar PDF
       const pdfBuffer = await pdfService.generar(cotizacion);
+      const pdfBase64 = Buffer.from(pdfBuffer).toString("base64");
 
-      const html = `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <div style="background-color: #1a56db; padding: 20px; text-align: center;">
-                        <h1 style="color: white; margin: 0;">${this.empresa.nombre}</h1>
-                    </div>
-                    
-                    <div style="padding: 20px;">
-                        <h2>Hola ${cotizacion.cliente_nombre},</h2>
-                        
-                        <p>Adjuntamos la cotización solicitada para su vehículo.</p>
-                        
-                        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <p><strong>N° Cotización:</strong> ${cotizacion.numero_cotizacion || cotizacion.cotizacion_id}</p>
-                            <p><strong>Fecha:</strong> ${formatFecha(cotizacion.fecha_emision)}</p>
-                            <p><strong>Vehículo:</strong> ${cotizacion.marca} ${cotizacion.modelo} - ${cotizacion.placa}</p>
-                            <p><strong>Monto Total:</strong> S/ ${total.toFixed(2)}</p>
-                            <p><strong>Estado:</strong> ${cotizacion.estado}</p>
-                        </div>
-                        
-                        <p>Para ver los detalles completos, haga clic en el siguiente enlace:</p>
-                        <p style="text-align: center;">
-                            <a href="${linkPublico}" style="background-color: #1a56db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Cotización</a>
-                        </p>
-                        
-                        <p>El PDF de la cotización se adjunta a este correo.</p>
-                        
-                        <hr style="margin: 30px 0;">
-                        
-                        <p style="color: #6b7280; font-size: 12px;">
-                            ${this.empresa.nombre}<br>
-                            ${this.empresa.direccion}<br>
-                            Tel: ${this.empresa.telefono}
-                        </p>
-                    </div>
-                </div>
-            `;
-
-      const info = await this.transporter.sendMail({
-        from: `"${this.empresa.nombre}" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `Cotización N° ${cotizacion.numero_cotizacion || cotizacion.cotizacion_id} - ${this.empresa.nombre}`,
-        html: html,
-        attachments: [
-          {
-            filename: `cotizacion_${cotizacion.cotizacion_id}.pdf`,
-            content: pdfBuffer,
-            contentType: "application/pdf",
+      // Llamar al microservicio de notificaciones
+      const response = await fetch(
+        `${process.env.NOTIFICATIONS_URL}/api/email/cotizacion`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": process.env.NOTIFICATIONS_SECRET,
           },
-        ],
-      });
+          body: JSON.stringify({
+            to: email,
+            cliente_nombre: cotizacion.cliente_nombre,
+            numero_cotizacion:
+              cotizacion.numero_cotizacion || cotizacion.cotizacion_id,
+            fecha_emision: formatFecha(cotizacion.fecha_emision),
+            marca: cotizacion.marca,
+            modelo: cotizacion.modelo,
+            placa: cotizacion.placa,
+            total: total.toFixed(2),
+            estado: cotizacion.estado,
+            link_publico: linkPublico,
+            pdf_base64: pdfBase64,
+          }),
+        },
+      );
 
-      return {
-        enviado: true,
-        messageId: info.messageId,
-        to: email,
-      };
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.message || "Error en el servicio de notificaciones",
+        );
+      }
+
+      return data.data;
     } catch (error) {
       console.error("Error al enviar email:", error);
       throw new Error(`No se pudo enviar el email: ${error.message}`);
     }
   }
 
-  /**
-   * Generar link público para compartir
-   */
   generarLinkPublico(token) {
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     return `${baseUrl}/cotizacion/${token}`;
