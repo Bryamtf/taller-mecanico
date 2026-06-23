@@ -65,7 +65,23 @@ services:
         condition: service_healthy
     networks:
       - taller_network
-
+  notifications:
+      build:
+        context: .
+        dockerfile: docker/Dockerfile.notifications
+      container_name: miautonort_notifications
+      restart: always
+      environment:
+        NODE_ENV: production
+        PORT: 3002
+      ports:
+        - "3002:3002"
+      volumes:
+        - ./notifications:/app
+        - /app/node_modules
+        - ./notifications/.env:/app/.env
+      networks:
+        - taller_network
   frontend:
     build:
       context: .
