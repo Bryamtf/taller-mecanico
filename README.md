@@ -40,3 +40,8 @@ npm install puppeteer@23.11.1
 npm uninstall pdfkit
 # Luego de instalar la nueva dependencia reconstuir la imagen del docker
 docker-compose build --nocache
+
+# Micro servicio de email
+ npm install
+ agregar las variables
+ docker-compose up -d --build notifications
