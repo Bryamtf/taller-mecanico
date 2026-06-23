@@ -86,38 +86,88 @@ const Cotizacion = {
   },
 
   async listarCotizaciones(filtros = {}) {
-    let sql = `SELECT c.cotizacion_id, 
-                      c.numero_cotizacion,
-                      c.estado,
-                      c.fecha_emision,
-                      c.total,
-                      CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
-                      v.placa
-               FROM Cotizacion c
-               JOIN Cliente cli ON c.cliente_id = cli.cliente_id
-               JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
-               WHERE (c.deleted_at IS NULL OR c.deleted_at IS NULL)`;
+    const {
+      estado,
+      cliente_id,
+      es_modelo,
+      busqueda,
+      page = 1,
+      pageSize = 20,
+    } = filtros;
+
+    const offset = (Number(page) - 1) * Number(pageSize);
     const params = [];
+    const paramsTotales = [];
 
-    if (filtros.estado) {
-      sql += ` AND c.estado = ?`;
-      params.push(filtros.estado);
+    let whereClause = `WHERE (c.deleted_at IS NULL)`;
+
+    if (estado) {
+      whereClause += ` AND c.estado = ?`;
+      params.push(estado);
+      paramsTotales.push(estado);
     }
 
-    if (filtros.cliente_id) {
-      sql += ` AND c.cliente_id = ?`;
-      params.push(filtros.cliente_id);
+    if (cliente_id) {
+      whereClause += ` AND c.cliente_id = ?`;
+      params.push(cliente_id);
+      paramsTotales.push(cliente_id);
     }
 
-    if (filtros.es_modelo !== undefined) {
-      sql += ` AND c.es_modelo = ?`;
-      params.push(filtros.es_modelo);
+    if (es_modelo !== undefined) {
+      whereClause += ` AND c.es_modelo = ?`;
+      params.push(es_modelo);
+      paramsTotales.push(es_modelo);
     }
 
-    sql += ` ORDER BY c.cotizacion_id DESC`;
+    if (busqueda && busqueda.trim()) {
+      whereClause += ` AND (
+      CONCAT(cli.nombres, ' ', cli.apellidos) LIKE ?
+      OR v.placa LIKE ?
+      OR c.numero_cotizacion LIKE ?
+      OR cli.dni_ruc LIKE ?
+    )`;
+      const termino = `%${busqueda.trim()}%`;
+      params.push(termino, termino, termino, termino);
+      paramsTotales.push(termino, termino, termino, termino);
+    }
 
-    const [rows] = await pool.execute(sql, params);
-    return rows;
+    const sqlDatos = `
+    SELECT
+      c.cotizacion_id,
+      c.numero_cotizacion,
+      c.estado,
+      c.fecha_emision,
+      c.total,
+      CONCAT(cli.nombres, ' ', cli.apellidos) as cliente_nombre,
+      v.placa
+    FROM Cotizacion c
+    JOIN Cliente cli ON c.cliente_id = cli.cliente_id
+    JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
+    ${whereClause}
+    ORDER BY c.cotizacion_id DESC
+    LIMIT ${Number(pageSize)} OFFSET ${Number(offset)}
+  `;
+
+    const sqlTotal = `
+    SELECT COUNT(*) as total
+    FROM Cotizacion c
+    JOIN Cliente cli ON c.cliente_id = cli.cliente_id
+    JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
+    ${whereClause}
+  `;
+
+    const [[rows], [totalesRows]] = await Promise.all([
+      pool.query(sqlDatos, params),
+      pool.query(sqlTotal, paramsTotales),
+    ]);
+
+    return {
+      data: rows,
+      total: totalesRows[0].total,
+      page: Number(page),
+      pageSize: Number(pageSize),
+      totalPages: Math.ceil(totalesRows[0].total / Number(pageSize)),
+    };
   },
 
   async actualizarEstado(id, estado) {

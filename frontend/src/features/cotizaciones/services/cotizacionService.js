@@ -3,8 +3,8 @@ import api from '@/lib/axios';
 
 const cotizacionService = {
   // Obtener todas las cotizaciones
-  async listar() {
-    const response = await api.get("/cotizaciones");
+  async listar(params = {}) {
+    const response = await api.get("/cotizaciones", { params });
     return response.data;
   },
 
@@ -61,6 +61,10 @@ const cotizacionService = {
     const response = await api.post(`/cotizaciones/${id}/compartir/email`, {
       email,
     });
+    return response.data;
+  },
+  async obtenerPorToken(token) {
+    const response = await api.get(`/cotizaciones/public/${token}`);
     return response.data;
   },
 };

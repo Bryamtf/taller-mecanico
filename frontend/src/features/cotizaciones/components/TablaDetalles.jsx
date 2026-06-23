@@ -1,10 +1,10 @@
 import React from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 
 const TablaDetalles = ({
   detalles,
   onEliminar,
-  onActualizar,
+  onEditar,
   soloLectura = false,
 }) => {
   const formatMoney = (value) => {
@@ -33,7 +33,7 @@ const TablaDetalles = ({
             <th className="px-3 py-2 text-right w-28">Descuento</th>
             <th className="px-3 py-2 text-right w-28">Subtotal</th>
             {!soloLectura && (
-              <th className="px-3 py-2 text-center w-16">Acción</th>
+              <th className="px-3 py-2 text-center w-20">Acción</th>
             )}
           </tr>
         </thead>
@@ -65,13 +65,22 @@ const TablaDetalles = ({
               </td>
               {!soloLectura && (
                 <td className="px-3 py-2 text-center">
-                  <button
-                    onClick={() => onEliminar(index)}
-                    title="Eliminar item"
-                    className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => onEditar(index)}
+                      title="Editar item"
+                      className="inline-flex items-center justify-center p-1.5 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => onEliminar(index)}
+                      title="Eliminar item"
+                      className="inline-flex items-center justify-center p-1.5 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               )}
             </tr>

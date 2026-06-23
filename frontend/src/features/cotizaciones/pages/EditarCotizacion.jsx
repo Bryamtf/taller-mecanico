@@ -18,12 +18,12 @@ import {
 import { ESTADOS_BLOQUEADOS } from "../utils/estados";
 import { getImagenUrl } from "../utils/imagenUrl";
 
-
 const EditarCotizacion = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [itemEditandoIndex, setItemEditandoIndex] = useState(null);
   const [formData, setFormData] = useState({
     cotizacion_id: "",
     numero_cotizacion: "",
@@ -135,12 +135,28 @@ const EditarCotizacion = () => {
     setDiasEstimados(calcularDiasDesdeFecha(fecha));
   };
 
-  const handleAgregarDetalle = (nuevoDetalle) => {
-    setFormData((prev) => ({
-      ...prev,
-      detalles: [...prev.detalles, nuevoDetalle],
-    }));
+  const handleGuardarDetalle = (item) => {
+    setFormData((prev) => {
+      const nuevosDetalles = [...prev.detalles];
+      if (itemEditandoIndex !== null) {
+        nuevosDetalles[itemEditandoIndex] = item;
+      } else {
+        nuevosDetalles.push(item);
+      }
+      return { ...prev, detalles: nuevosDetalles };
+    });
+    setItemEditandoIndex(null);
     setMostrarFormularioDetalle(false);
+  };
+
+  const handleEditarDetalle = (index) => {
+    setItemEditandoIndex(index);
+    setMostrarFormularioDetalle(true);
+  };
+
+  const handleCancelarFormularioDetalle = () => {
+    setMostrarFormularioDetalle(false);
+    setItemEditandoIndex(null);
   };
 
   const handleEliminarDetalle = (index) => {
@@ -362,7 +378,7 @@ const EditarCotizacion = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-semibold text-gray-700">Detalles</h3>
-            {!soloLectura && (
+            {!soloLectura && !mostrarFormularioDetalle && (
               <button
                 onClick={() => setMostrarFormularioDetalle(true)}
                 className="text-sm bg-brand hover:bg-brand-hover text-white px-3 py-1 rounded-lg transition-colors"
@@ -374,14 +390,21 @@ const EditarCotizacion = () => {
 
           {!soloLectura && mostrarFormularioDetalle && (
             <FormularioDetalle
-              onAgregar={handleAgregarDetalle}
-              onCancelar={() => setMostrarFormularioDetalle(false)}
+              key={itemEditandoIndex ?? "nuevo"}
+              onAgregar={handleGuardarDetalle}
+              onCancelar={handleCancelarFormularioDetalle}
+              itemEditar={
+                itemEditandoIndex !== null
+                  ? formData.detalles[itemEditandoIndex]
+                  : null
+              }
             />
           )}
 
           <TablaDetalles
             detalles={formData.detalles}
             onEliminar={handleEliminarDetalle}
+            onEditar={handleEditarDetalle}
             soloLectura={soloLectura}
           />
         </div>

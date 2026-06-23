@@ -10,11 +10,13 @@ import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
 import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
 import VerCotizacion from "@/features/cotizaciones/pages/VerCotizacion";
+import VerCotizacionPublica from "@/features/cotizaciones/pages/VerCotizacionPublica";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cotizacion/:token" element={<VerCotizacionPublica />} />
 
       {/* Rutas protegidas */}
       <Route element={<PrivateRoute />}>
