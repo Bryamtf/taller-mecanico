@@ -44,6 +44,7 @@ services:
       dockerfile: docker/Dockerfile.backend
     container_name: miautonort_backend
     restart: always
+    command: npm run dev
     environment:
       NODE_ENV: development
       PORT: ${BACKEND_PORT_CONTAINER}
