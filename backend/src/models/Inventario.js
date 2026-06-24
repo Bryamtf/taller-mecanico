@@ -79,16 +79,32 @@ const Inventario = {
       total = t;
     }
 
-    const [resumen] = await pool.query(
-      `SELECT COUNT(DISTINCT a.articulo_id)      AS totalItems,
-              COALESCE(SUM(amp.stock_actual), 0) AS stockTotal
+    const [resumenRows] = await pool.query(
+      `SELECT
+          COUNT(DISTINCT a.articulo_id)                                       AS totalItems,
+          COALESCE(SUM(amp.stock_actual), 0)                                  AS stockTotal,
+          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)               AS valorTotal,
+          COUNT(DISTINCT CASE WHEN a.alerta_stock = 1 THEN a.articulo_id END) AS articulosEnAlerta
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        WHERE a.activo = 1`
     );
 
+    const [[{ movimientosDelMes }]] = await pool.query(
+      `SELECT COUNT(*) AS movimientosDelMes
+       FROM Movimiento_inventario
+       WHERE MONTH(fecha) = MONTH(CURDATE()) AND YEAR(fecha) = YEAR(CURDATE())`
+    );
+
+    const r = resumenRows[0];
     return {
-      resumen:      { totalItems: Number(resumen[0].totalItems), stockTotal: Number(resumen[0].stockTotal) },
+      resumen: {
+        totalItems:        Number(r.totalItems),
+        stockTotal:        Number(r.stockTotal),
+        valorTotal:        Number(r.valorTotal),
+        articulosEnAlerta: Number(r.articulosEnAlerta),
+        movimientosDelMes: Number(movimientosDelMes),
+      },
       productos:    rows,
       total:        Number(total),
       pagina,
