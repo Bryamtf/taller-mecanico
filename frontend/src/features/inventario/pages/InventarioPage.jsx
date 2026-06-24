@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity } from 'lucide-react';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
@@ -117,23 +117,54 @@ export default function InventarioPage() {
       </div>
 
       {/* Tarjetas resumen */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-            <Package size={20} className="text-[#e5ba4a]" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+            <Package size={18} className="text-[#e5ba4a]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-[#bababa] uppercase tracking-wide">Total ítems</p>
             <p className="text-2xl font-bold text-gray-800">{resumen.totalItems}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-            <Package size={20} className="text-green-600" />
+
+        <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+            <Package size={18} className="text-green-600" />
           </div>
-          <div>
-            <p className="text-xs text-[#bababa] uppercase tracking-wide">Stock total</p>
-            <p className="text-2xl font-bold text-gray-800">{resumen.stockTotal}</p>
+          <div className="min-w-0">
+            <p className="text-xs text-[#bababa] uppercase tracking-wide">Unidades en stock</p>
+            <p className="text-2xl font-bold text-gray-800">{resumen.stockTotal.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+            <DollarSign size={18} className="text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-[#bababa] uppercase tracking-wide">Valor del stock</p>
+            <p className="text-xl font-bold text-gray-800 truncate">
+              S/ {Number(resumen.valorTotal).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${resumen.articulosEnAlerta > 0 ? 'bg-orange-100' : 'bg-gray-100'}`}>
+            <AlertTriangle size={18} className={resumen.articulosEnAlerta > 0 ? 'text-orange-500' : 'text-gray-400'} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-[#bababa] uppercase tracking-wide">En alerta</p>
+            <div className="flex items-end gap-2">
+              <p className={`text-2xl font-bold ${resumen.articulosEnAlerta > 0 ? 'text-orange-500' : 'text-gray-800'}`}>
+                {resumen.articulosEnAlerta}
+              </p>
+              <p className="text-xs text-[#bababa] mb-1">
+                <Activity size={11} className="inline mr-0.5" />
+                {resumen.movimientosDelMes} mov/mes
+              </p>
+            </div>
           </div>
         </div>
       </div>
