@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { Plus } from "lucide-react";
+import Swal from "sweetalert2";
 import FormularioDetalle from "./FormularioDetalle";
 import TablaDetalles from "./TablaDetalles";
 import ResumenParcial from "./ResumenParcial";
@@ -39,7 +41,7 @@ const PasoDetalles = ({ data, onNext, onPrevious, onUpdate }) => {
   };
   const handleSubmit = () => {
     if (detalles.length === 0) {
-      alert("Debe agregar al menos un item a la cotización");
+      Swal.fire("Sin ítems", "Debes agregar al menos un ítem a la cotización.", "warning");
       return;
     }
 
@@ -69,13 +71,13 @@ const PasoDetalles = ({ data, onNext, onPrevious, onUpdate }) => {
         Paso 3 de 4: Detalle de Cotización
       </h2>
 
-      {/* Botón agregar */}
       {!mostrarFormulario && (
         <button
           onClick={() => setMostrarFormulario(true)}
-          className="mb-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          className="mb-4 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition-colors"
         >
-          + Agregar Item
+          <Plus size={16} />
+          Agregar ítem
         </button>
       )}
 
@@ -111,13 +113,13 @@ const PasoDetalles = ({ data, onNext, onPrevious, onUpdate }) => {
       <div className="flex justify-between mt-6">
         <button
           onClick={onPrevious}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg transition-colors"
+          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg transition-colors"
         >
           ← Anterior
         </button>
         <button
           onClick={handleSubmit}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          className="bg-[#e5ba4a] hover:bg-[#d4a93a] text-white px-6 py-2 rounded-lg transition-colors"
         >
           Siguiente →
         </button>
