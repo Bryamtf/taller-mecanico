@@ -26,3 +26,6 @@ export const agregarMarca  = (artId, data)            => api.post(`/articulos/${
 export const updateMarca   = (artId, marcaId, data)   => api.put(`/articulos/${artId}/marcas/${marcaId}`, data).then(r => r.data);
 export const deleteMarca   = (artId, marcaId)         => api.delete(`/articulos/${artId}/marcas/${marcaId}`).then(r => r.data);
 export const ajustarStock  = (artId, marcaId, data)   => api.post(`/articulos/${artId}/marcas/${marcaId}/ajuste`, data).then(r => r.data);
+
+export const getMovimientos       = (artId, params) => api.get(`/inventario/articulos/${artId}/movimientos`, { params }).then(r => r.data);
+export const getArticulosEnAlerta = ()              => api.get('/inventario/alertas').then(r => r.data);

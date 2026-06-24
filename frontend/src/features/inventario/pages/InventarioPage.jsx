@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle } from 'lucide-react';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
+import HistorialMovimientosModal from '../components/HistorialMovimientosModal';
+import AlertasStockModal from '../components/AlertasStockModal';
 import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
 import { getImageUrl } from '../services/inventarioService';
 import { swalConfirm, swalSuccess, swalError } from '@/lib/swal';
@@ -22,13 +24,21 @@ export default function InventarioPage() {
     loading, fetchInventario, eliminar, reactivar,
   } = useInventario();
 
-  const [modalOpen, setModalOpen]       = useState(false);
-  const [articuloId, setArticuloId]     = useState(null);
-  const [marcasOpen, setMarcasOpen]     = useState(false);
-  const [scannerOpen, setScannerOpen]   = useState(false);
+  const [modalOpen, setModalOpen]         = useState(false);
+  const [articuloId, setArticuloId]       = useState(null);
+  const [marcasOpen, setMarcasOpen]       = useState(false);
+  const [scannerOpen, setScannerOpen]     = useState(false);
+  const [historialOpen, setHistorialOpen] = useState(false);
+  const [articuloHistorial, setArticuloHistorial] = useState(null);
+  const [alertasOpen, setAlertasOpen]     = useState(false);
 
   const handleNuevo  = () => { setArticuloId(null); setModalOpen(true); };
   const handleEditar = (id) => { setArticuloId(id); setModalOpen(true); };
+
+  const handleVerHistorial = (p) => {
+    setArticuloHistorial({ articulo_id: p.articulo_id, nombre: p.nombre });
+    setHistorialOpen(true);
+  };
 
   const handleToggle = async (p) => {
     const accion = p.activo ? 'desactivar' : 'activar';
@@ -61,13 +71,17 @@ export default function InventarioPage() {
           <h1 className="text-xl font-semibold text-gray-800">Inventario</h1>
           <p className="text-sm text-[#bababa]">{total} producto{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setAlertasOpen(true)}
+            className="flex items-center justify-center gap-2 border border-orange-300 text-orange-500 hover:bg-orange-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <AlertTriangle size={16} /> Alertas de stock
+          </button>
           <button onClick={() => setMarcasOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            className="flex items-center justify-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Tag size={16} /> Gestionar marcas
           </button>
           <button onClick={handleNuevo}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            className="flex items-center justify-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Plus size={16} /> Nuevo producto
           </button>
         </div>
@@ -142,41 +156,44 @@ export default function InventarioPage() {
               )}
               {!loading && productos.map(p => (
                 <tr key={`${p.articulo_id}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  {/* Imagen */}
                   <td className="px-4 py-3">
                     {p.imagen_principal
                       ? <img src={getImageUrl(p.imagen_principal)} alt={p.nombre} className="w-10 h-10 object-cover rounded-lg border border-gray-200" />
                       : <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><Package size={16} className="text-gray-300" /></div>
                     }
                   </td>
-                  {/* Nombre + código */}
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-800">{p.nombre}</p>
                     {p.codigo_interno && <p className="text-xs text-[#bababa]">{p.codigo_interno}</p>}
                   </td>
-                  {/* Tipo */}
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${TIPO_BADGE[p.tipo] || 'bg-gray-100 text-gray-500'}`}>
                       {p.tipo}
                     </span>
                   </td>
-                  {/* Marcas */}
                   <td className="px-4 py-3 text-gray-500 text-xs max-w-[160px] truncate">
                     {p.marcas || <span className="text-[#bababa]">Sin marca</span>}
                   </td>
-                  {/* Stock */}
                   <td className="px-4 py-3 text-center">
-                    <span className={`font-semibold ${Number(p.stock_total) <= Number(p.stock_minimo) && Number(p.stock_total) > 0 ? 'text-orange-500' : Number(p.stock_total) === 0 ? 'text-red-500' : 'text-green-600'}`}>
+                    <span className={`font-semibold ${
+                      Number(p.stock_total) <= Number(p.stock_minimo) && Number(p.stock_total) > 0
+                        ? 'text-orange-500'
+                        : Number(p.stock_total) === 0
+                          ? 'text-red-500'
+                          : 'text-green-600'
+                    }`}>
                       {p.stock_total}
                     </span>
                   </td>
-                  {/* Precio */}
                   <td className="px-4 py-3 text-gray-600">
                     {formatPrecio(p)}
                   </td>
-                  {/* Acciones */}
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => handleVerHistorial(p)} title="Ver historial"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#e5ba4a] hover:bg-amber-50 transition-colors">
+                        <History size={15} />
+                      </button>
                       <button onClick={() => handleEditar(p.articulo_id)} title="Editar"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors">
                         <Pencil size={15} />
@@ -212,6 +229,14 @@ export default function InventarioPage() {
       </div>
 
       <GestionMarcasModal open={marcasOpen} onClose={() => setMarcasOpen(false)} />
+
+      <AlertasStockModal open={alertasOpen} onClose={() => setAlertasOpen(false)} />
+
+      <HistorialMovimientosModal
+        open={historialOpen}
+        onClose={() => { setHistorialOpen(false); setArticuloHistorial(null); }}
+        articulo={articuloHistorial}
+      />
 
       <BarcodeScannerModal
         open={scannerOpen}
