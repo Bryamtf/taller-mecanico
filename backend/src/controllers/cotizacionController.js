@@ -270,6 +270,13 @@ const cotizacionController = {
         });
       }
 
+      if (estado === "aprobada") {
+        return res.status(400).json({
+          success: false,
+          message: "Para aprobar una cotización usa el botón de aprobación. Esta acción descuenta el stock automáticamente.",
+        });
+      }
+
       let subtotal = 0;
       const detallesCalc = (detalles || []).map((d) => {
         const subtotalItem =
@@ -408,42 +415,164 @@ const cotizacionController = {
   },
 
   async cambiarEstado(req, res) {
+    const ESTADOS_VALIDOS    = ["borrador", "pendiente", "aprobada", "rechazada", "vencida"];
+    const DESDE_APROBADA_OK  = ["rechazada", "vencida"];
+    const HACIA_APROBADA_OK  = ["borrador", "pendiente"];
+
     try {
-      const { id } = req.params;
+      const { id }    = req.params;
       const { estado } = req.body;
-      const estadosValidos = [
-        "borrador",
-        "pendiente",
-        "aprobada",
-        "rechazada",
-        "vencida",
-      ];
-      if (!estadosValidos.includes(estado)) {
+
+      if (!ESTADOS_VALIDOS.includes(estado)) {
+        return res.status(400).json({ success: false, message: "Estado no válido" });
+      }
+
+      const cotizacion = await Cotizacion.encontrarPorId(id);
+      if (!cotizacion) {
+        return res.status(404).json({ success: false, message: "Cotización no encontrada" });
+      }
+
+      if (cotizacion.estado === estado) {
+        return res.status(400).json({ success: false, message: `La cotización ya está en estado "${estado}"` });
+      }
+
+      if (estado === "aprobada" && !HACIA_APROBADA_OK.includes(cotizacion.estado)) {
         return res.status(400).json({
           success: false,
-          message: "Estado no valido",
+          message: `No se puede aprobar una cotización en estado "${cotizacion.estado}"`,
         });
       }
 
-      const actualizado = await Cotizacion.actualizarEstado(id, estado);
-      if (!actualizado) {
-        return res.status(404).json({
+      if (cotizacion.estado === "aprobada" && !DESDE_APROBADA_OK.includes(estado)) {
+        return res.status(400).json({
           success: false,
-          message: "Cotización no encontrada",
+          message: `Una cotización aprobada solo puede pasar a "rechazada" o "vencida"`,
         });
       }
 
-      res.json({
-        success: true,
-        message: `Estado actualizado a ${estado}`,
-        data: { id, estado },
-      });
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        if (estado === "aprobada") {
+          const detallesRepuesto = cotizacion.detalles.filter(
+            (d) => d.articulo_id && d.marca_id && !d.es_servicio
+          );
+
+          for (const detalle of detallesRepuesto) {
+            const cant = parseInt(detalle.cantidad, 10);
+
+            const [rows] = await conn.query(
+              `SELECT amp.stock_actual, a.nombre AS nombre, a.stock_minimo
+               FROM Articulo_Marca_Precio amp
+               JOIN Articulos a ON a.articulo_id = amp.articulo_id
+               WHERE amp.articulo_id = ? AND amp.marca_id = ?
+               FOR UPDATE`,
+              [detalle.articulo_id, detalle.marca_id]
+            );
+
+            if (!rows.length) continue;
+
+            const { stock_actual, nombre, stock_minimo } = rows[0];
+
+            if (stock_actual < cant) {
+              await conn.rollback();
+              return res.status(409).json({
+                success: false,
+                message: `Stock insuficiente para "${nombre}". Disponible: ${stock_actual}, requerido: ${cant}`,
+              });
+            }
+
+            const nuevoStock = stock_actual - cant;
+
+            await conn.query(
+              `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+              [nuevoStock, detalle.articulo_id, detalle.marca_id]
+            );
+
+            await conn.query(
+              `INSERT INTO Movimiento_inventario
+                 (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
+               VALUES (?, ?, 'salida', ?, ?, ?, 'cotizacion', ?, ?)`,
+              [detalle.articulo_id, detalle.marca_id, cant, stock_actual, nuevoStock, parseInt(id), req.user?.username || null]
+            );
+
+            await conn.query(
+              `UPDATE Articulos
+               SET alerta_stock = (
+                 SELECT CASE WHEN MIN(amp2.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+                 FROM Articulo_Marca_Precio amp2 WHERE amp2.articulo_id = ?
+               )
+               WHERE articulo_id = ?`,
+              [detalle.articulo_id, detalle.articulo_id]
+            );
+          }
+        }
+
+        if (cotizacion.estado === "aprobada") {
+          const [movimientos] = await conn.query(
+            `SELECT articulo_id, marca_id, cantidad
+             FROM Movimiento_inventario
+             WHERE referencia_id = ? AND motivo = 'cotizacion' AND tipo_movimiento = 'salida'`,
+            [parseInt(id)]
+          );
+
+          for (const mov of movimientos) {
+            const [rows] = await conn.query(
+              `SELECT stock_actual FROM Articulo_Marca_Precio
+               WHERE articulo_id = ? AND marca_id = ? FOR UPDATE`,
+              [mov.articulo_id, mov.marca_id]
+            );
+            if (!rows.length) continue;
+
+            const stockAnterior = rows[0].stock_actual;
+            const nuevoStock    = stockAnterior + mov.cantidad;
+
+            await conn.query(
+              `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+              [nuevoStock, mov.articulo_id, mov.marca_id]
+            );
+
+            await conn.query(
+              `INSERT INTO Movimiento_inventario
+                 (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
+               VALUES (?, ?, 'entrada', ?, ?, ?, 'devolucion_cotizacion', ?, ?)`,
+              [mov.articulo_id, mov.marca_id, mov.cantidad, stockAnterior, nuevoStock, parseInt(id), req.user?.username || null]
+            );
+
+            await conn.query(
+              `UPDATE Articulos
+               SET alerta_stock = (
+                 SELECT CASE WHEN MIN(amp.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+                 FROM Articulo_Marca_Precio amp WHERE amp.articulo_id = ?
+               )
+               WHERE articulo_id = ?`,
+              [mov.articulo_id, mov.articulo_id]
+            );
+          }
+        }
+
+        await conn.query(
+          `UPDATE Cotizacion SET estado = ? WHERE cotizacion_id = ?`,
+          [estado, id]
+        );
+
+        await conn.commit();
+
+        res.json({
+          success: true,
+          message: `Estado actualizado a ${estado}`,
+          data: { id, estado },
+        });
+      } catch (error) {
+        await conn.rollback();
+        throw error;
+      } finally {
+        conn.release();
+      }
     } catch (error) {
       console.error("Error al cambiar estado:", error);
-      res.status(500).json({
-        success: false,
-        message: "Error al cambiar el estado",
-      });
+      res.status(500).json({ success: false, message: "Error al cambiar el estado" });
     }
   },
   async descargarPDF(req, res) {
