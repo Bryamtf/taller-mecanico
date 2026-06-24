@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
@@ -11,6 +11,32 @@ import { swalConfirm, swalSuccess, swalError } from '@/lib/swal';
 
 const TIPOS = ['repuesto', 'consumible', 'servicio'];
 
+const STOCK_FILTROS = [
+  { value: '',         label: 'Todos' },
+  { value: 'alerta',   label: 'En alerta' },
+  { value: 'sinstock', label: 'Sin stock' },
+];
+
+const SortTh = ({ col, label, orden, onSort, className = '' }) => {
+  const [prevCol, prevDir] = orden.split('_');
+  const activo = prevCol === col;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`px-4 py-3 font-semibold text-gray-600 cursor-pointer select-none hover:text-[#e5ba4a] transition-colors ${className}`}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        {activo
+          ? prevDir === 'asc'
+            ? <ArrowUp size={13} className="text-[#e5ba4a]" />
+            : <ArrowDown size={13} className="text-[#e5ba4a]" />
+          : <ArrowUpDown size={13} className="text-gray-300" />}
+      </span>
+    </th>
+  );
+};
+
 const TIPO_BADGE = {
   repuesto:   'bg-blue-100 text-blue-700',
   consumible: 'bg-purple-100 text-purple-700',
@@ -20,7 +46,10 @@ const TIPO_BADGE = {
 export default function InventarioPage() {
   const {
     productos, resumen, total, totalPaginas, pagina, setPagina,
-    busqueda, handleBusqueda, filtroTipo, handleFiltro,
+    busqueda, handleBusqueda,
+    filtroTipo, handleFiltro,
+    filtroStock, handleFiltroStock,
+    orden, handleOrden,
     loading, fetchInventario, eliminar, reactivar,
   } = useInventario();
 
@@ -110,26 +139,45 @@ export default function InventarioPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#bababa]" />
-          <input value={busqueda} onChange={e => handleBusqueda(e.target.value)}
-            placeholder="Buscar por nombre, código..."
-            className="w-full pl-9 pr-10 py-2 text-sm rounded-lg border border-gray-300 bg-white outline-none focus:border-[#e5ba4a] transition-colors" />
-          <button
-            type="button"
-            onClick={() => setScannerOpen(true)}
-            title="Escanear código de barras"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[#bababa] hover:text-[#e5ba4a] transition-colors"
-          >
-            <ScanLine size={16} />
-          </button>
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#bababa]" />
+            <input value={busqueda} onChange={e => handleBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, código..."
+              className="w-full pl-9 pr-10 py-2 text-sm rounded-lg border border-gray-300 bg-white outline-none focus:border-[#e5ba4a] transition-colors" />
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              title="Escanear código de barras"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[#bababa] hover:text-[#e5ba4a] transition-colors"
+            >
+              <ScanLine size={16} />
+            </button>
+          </div>
+          <select value={filtroTipo} onChange={e => handleFiltro(e.target.value)}
+            className="text-sm rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none focus:border-[#e5ba4a] transition-colors">
+            <option value="">Todos los tipos</option>
+            {TIPOS.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+          </select>
         </div>
-        <select value={filtroTipo} onChange={e => handleFiltro(e.target.value)}
-          className="text-sm rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none focus:border-[#e5ba4a] transition-colors">
-          <option value="">Todos los tipos</option>
-          {TIPOS.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
-        </select>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-[#bababa]">Stock:</span>
+          {STOCK_FILTROS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => handleFiltroStock(f.value)}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                filtroStock === f.value
+                  ? 'bg-[#e5ba4a] border-[#e5ba4a] text-white'
+                  : 'border-gray-200 text-gray-500 hover:border-[#e5ba4a] hover:text-[#e5ba4a]'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tabla */}
@@ -138,12 +186,12 @@ export default function InventarioPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left">
-                <th className="px-4 py-3 font-semibold text-gray-600 w-14"></th>
-                <th className="px-4 py-3 font-semibold text-gray-600">Producto</th>
+                <th className="px-4 py-3 w-14"></th>
+                <SortTh col="nombre" label="Producto"    orden={orden} onSort={handleOrden} />
                 <th className="px-4 py-3 font-semibold text-gray-600">Tipo</th>
                 <th className="px-4 py-3 font-semibold text-gray-600">Marcas</th>
-                <th className="px-4 py-3 font-semibold text-gray-600 text-center">Stock</th>
-                <th className="px-4 py-3 font-semibold text-gray-600">Precio venta</th>
+                <SortTh col="stock"  label="Stock"       orden={orden} onSort={handleOrden} className="text-center" />
+                <SortTh col="precio" label="Precio venta" orden={orden} onSort={handleOrden} />
                 <th className="px-4 py-3 font-semibold text-gray-600 text-center">Acciones</th>
               </tr>
             </thead>
