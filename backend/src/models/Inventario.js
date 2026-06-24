@@ -2,7 +2,7 @@ const pool = require('../config/database');
 
 const Inventario = {
 
-  async obtenerInventarioCompleto({ pagina = 1, limite = 10, busqueda = '', tipo = '' } = {}) {
+  async obtenerInventarioCompleto({ pagina = 1, limite = 10, busqueda = '', tipo = '', filtroStock = '', orden = 'nombre_asc' } = {}) {
     const offset = (pagina - 1) * limite;
     const filtro = `%${busqueda}%`;
 
@@ -14,7 +14,23 @@ const Inventario = {
       params.push(tipo);
     }
 
+    if (filtroStock === 'alerta') {
+      condiciones.push('a.alerta_stock = 1');
+    }
+
     const where = condiciones.join(' AND ');
+
+    const having = filtroStock === 'sinstock' ? 'HAVING stock_total = 0' : '';
+
+    const ordenMap = {
+      nombre_asc:  'a.nombre ASC',
+      nombre_desc: 'a.nombre DESC',
+      stock_asc:   'stock_total ASC',
+      stock_desc:  'stock_total DESC',
+      precio_asc:  'precio_min ASC',
+      precio_desc: 'precio_min DESC',
+    };
+    const orderBy = ordenMap[orden] || 'a.nombre ASC';
 
     const [rows] = await pool.query(
       `SELECT
@@ -34,16 +50,34 @@ const Inventario = {
        WHERE ${where}
        GROUP BY a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
                 a.tipo, a.unidad_medida, a.stock_minimo, a.activo
-       ORDER BY a.nombre ASC
+       ${having}
+       ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
       [...params, limite, offset]
     );
 
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(DISTINCT a.articulo_id) AS total
-       FROM Articulos a WHERE ${where}`,
-      params
-    );
+    let total;
+    if (filtroStock === 'sinstock') {
+      const [[{ total: t }]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM (
+           SELECT a.articulo_id
+           FROM Articulos a
+           LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+           WHERE ${where}
+           GROUP BY a.articulo_id
+           HAVING COALESCE(SUM(amp.stock_actual), 0) = 0
+         ) sub`,
+        params
+      );
+      total = t;
+    } else {
+      const [[{ total: t }]] = await pool.query(
+        `SELECT COUNT(DISTINCT a.articulo_id) AS total
+         FROM Articulos a WHERE ${where}`,
+        params
+      );
+      total = t;
+    }
 
     const [resumen] = await pool.query(
       `SELECT COUNT(DISTINCT a.articulo_id)      AS totalItems,

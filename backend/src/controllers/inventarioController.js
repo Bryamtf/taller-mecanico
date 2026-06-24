@@ -2,12 +2,14 @@ const Inventario = require('../models/Inventario');
 
 const obtenerInventario = async (req, res) => {
     try {
-        const pagina   = parseInt(req.query.pagina)  || 1;
-        const limite   = parseInt(req.query.limite)  || 10;
-        const busqueda = req.query.busqueda || '';
-        const tipo     = req.query.tipo     || '';
+        const pagina      = parseInt(req.query.pagina) || 1;
+        const limite      = parseInt(req.query.limite) || 10;
+        const busqueda    = req.query.busqueda    || '';
+        const tipo        = req.query.tipo        || '';
+        const filtroStock = req.query.filtroStock || '';
+        const orden       = req.query.orden       || 'nombre_asc';
 
-        const resultado = await Inventario.obtenerInventarioCompleto({ pagina, limite, busqueda, tipo });
+        const resultado = await Inventario.obtenerInventarioCompleto({ pagina, limite, busqueda, tipo, filtroStock, orden });
         res.json({ success: true, ...resultado });
     } catch (error) {
         console.error('Error en obtenerInventario:', error);
