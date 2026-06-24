@@ -128,7 +128,7 @@ const Inventario = {
   async listarArticulos() {
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
@@ -142,7 +142,7 @@ const Inventario = {
     const like = `%${termino}%`;
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
