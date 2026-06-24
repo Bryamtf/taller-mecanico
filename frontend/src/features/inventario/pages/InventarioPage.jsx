@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity, Download, FileSpreadsheet, FileText, TrendingUp } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
 import HistorialMovimientosModal from '../components/HistorialMovimientosModal';
+import HistorialPreciosModal from '../components/HistorialPreciosModal';
 import AlertasStockModal from '../components/AlertasStockModal';
 import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
 import { getImageUrl, exportarInventario as exportarDatos } from '../services/inventarioService';
@@ -61,6 +62,8 @@ export default function InventarioPage() {
   const [scannerOpen, setScannerOpen]     = useState(false);
   const [historialOpen, setHistorialOpen] = useState(false);
   const [articuloHistorial, setArticuloHistorial] = useState(null);
+  const [preciosOpen, setPreciosOpen]     = useState(false);
+  const [articuloPrecios, setArticuloPrecios] = useState(null);
   const [alertasOpen, setAlertasOpen]     = useState(false);
   const [exportOpen, setExportOpen]       = useState(false);
   const [exportando, setExportando]       = useState(false);
@@ -99,6 +102,11 @@ export default function InventarioPage() {
   const handleVerHistorial = (p) => {
     setArticuloHistorial({ articulo_id: p.articulo_id, nombre: p.nombre });
     setHistorialOpen(true);
+  };
+
+  const handleVerPrecios = (p) => {
+    setArticuloPrecios({ articulo_id: p.articulo_id, nombre: p.nombre });
+    setPreciosOpen(true);
   };
 
   const handleToggle = async (p) => {
@@ -332,12 +340,16 @@ export default function InventarioPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleVerHistorial(p)} title="Ver historial"
+                      <button onClick={() => handleVerHistorial(p)} title="Historial de movimientos"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-[#e5ba4a] hover:bg-amber-50 transition-colors">
                         <History size={15} />
                       </button>
-                      <button onClick={() => handleEditar(p.articulo_id)} title="Editar"
+                      <button onClick={() => handleVerPrecios(p)} title="Historial de precios"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors">
+                        <TrendingUp size={15} />
+                      </button>
+                      <button onClick={() => handleEditar(p.articulo_id)} title="Editar"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-purple-500 hover:bg-purple-50 transition-colors">
                         <Pencil size={15} />
                       </button>
                       <button onClick={() => handleToggle(p)} title={p.activo ? 'Desactivar' : 'Activar'}
@@ -378,6 +390,12 @@ export default function InventarioPage() {
         open={historialOpen}
         onClose={() => { setHistorialOpen(false); setArticuloHistorial(null); }}
         articulo={articuloHistorial}
+      />
+
+      <HistorialPreciosModal
+        open={preciosOpen}
+        onClose={() => { setPreciosOpen(false); setArticuloPrecios(null); }}
+        articulo={articuloPrecios}
       />
 
       <BarcodeScannerModal
