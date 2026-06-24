@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Package, FileText, ShoppingBag,
   TrendingUp, ArrowDownLeft, ArrowUpRight, Users, UsersRound,
-  X, ChevronLeft, ChevronRight, LogOut, AlertTriangle,
+  X, ChevronLeft, ChevronRight, LogOut, AlertTriangle, Truck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/contexts/AuthContext';
@@ -16,6 +16,7 @@ const NAV_SECTIONS = [
       { label: 'Clientes',     icon: UsersRound,      to: '/clientes' },
       { label: 'Citas',        icon: Calendar,        to: '/citas' },
       { label: 'Inventario',   icon: Package,         to: '/inventario' },
+      { label: 'Proveedores',  icon: Truck,           to: '/proveedores' },
       { label: 'Cotizaciones', icon: FileText,        to: '/cotizaciones' },
       { label: 'Ventas',       icon: ShoppingBag,     to: '/ventas' },
       { label: 'Incidencias',  icon: AlertTriangle,   to: '/incidencias' },
