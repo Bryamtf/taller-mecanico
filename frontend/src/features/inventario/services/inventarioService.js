@@ -29,3 +29,4 @@ export const ajustarStock  = (artId, marcaId, data)   => api.post(`/articulos/${
 
 export const getMovimientos       = (artId, params) => api.get(`/inventario/articulos/${artId}/movimientos`, { params }).then(r => r.data);
 export const getArticulosEnAlerta = ()              => api.get('/inventario/alertas').then(r => r.data);
+export const exportarInventario   = (params)        => api.get('/inventario/exportar', { params }).then(r => r.data);

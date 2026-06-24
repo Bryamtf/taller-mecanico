@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
 import GestionMarcasModal from '../components/GestionMarcasModal';
 import HistorialMovimientosModal from '../components/HistorialMovimientosModal';
 import AlertasStockModal from '../components/AlertasStockModal';
 import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
-import { getImageUrl } from '../services/inventarioService';
+import { getImageUrl, exportarInventario as exportarDatos } from '../services/inventarioService';
+import { exportarExcel, exportarPDF } from '../utils/exportInventario';
 import { swalConfirm, swalSuccess, swalError } from '@/lib/swal';
 
 const TIPOS = ['repuesto', 'consumible', 'servicio'];
@@ -60,6 +62,36 @@ export default function InventarioPage() {
   const [historialOpen, setHistorialOpen] = useState(false);
   const [articuloHistorial, setArticuloHistorial] = useState(null);
   const [alertasOpen, setAlertasOpen]     = useState(false);
+  const [exportOpen, setExportOpen]       = useState(false);
+  const [exportando, setExportando]       = useState(false);
+  const exportRef                         = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setExportOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleExportar = async (formato) => {
+    setExportOpen(false);
+    setExportando(true);
+    try {
+      const params = { busqueda, orden };
+      if (filtroTipo)   params.tipo        = filtroTipo;
+      if (filtroStock)  params.filtroStock = filtroStock;
+      const { data } = await exportarDatos(params);
+      if (!data?.length) {
+        Swal.fire('Sin datos', 'No hay productos que exportar con los filtros actuales.', 'info');
+        return;
+      }
+      if (formato === 'excel') exportarExcel(data);
+      else                     exportarPDF(data);
+    } catch {
+      Swal.fire('Error', 'No se pudo generar el archivo.', 'error');
+    } finally {
+      setExportando(false);
+    }
+  };
 
   const handleNuevo  = () => { setArticuloId(null); setModalOpen(true); };
   const handleEditar = (id) => { setArticuloId(id); setModalOpen(true); };
@@ -109,6 +141,37 @@ export default function InventarioPage() {
             className="flex items-center justify-center gap-2 border border-[#e5ba4a] text-[#e5ba4a] hover:bg-amber-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Tag size={16} /> Gestionar marcas
           </button>
+
+          <div className="relative" ref={exportRef}>
+            <button
+              onClick={() => setExportOpen(p => !p)}
+              disabled={exportando}
+              className="flex items-center justify-center gap-2 border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+            >
+              <Download size={16} />
+              {exportando ? 'Exportando...' : 'Exportar'}
+              <span className="text-xs">▾</span>
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-100 z-10 overflow-hidden">
+                <button
+                  onClick={() => handleExportar('excel')}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <FileSpreadsheet size={15} className="text-green-600" />
+                  Exportar Excel
+                </button>
+                <button
+                  onClick={() => handleExportar('pdf')}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                >
+                  <FileText size={15} className="text-red-500" />
+                  Exportar PDF
+                </button>
+              </div>
+            )}
+          </div>
+
           <button onClick={handleNuevo}
             className="flex items-center justify-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <Plus size={16} /> Nuevo producto
