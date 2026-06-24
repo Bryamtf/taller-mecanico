@@ -76,4 +76,19 @@ const obtenerArticulosEnAlerta = async (req, res) => {
     }
 };
 
-module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta };
+const exportarInventario = async (req, res) => {
+    try {
+        const busqueda    = req.query.busqueda    || '';
+        const tipo        = req.query.tipo        || '';
+        const filtroStock = req.query.filtroStock || '';
+        const orden       = req.query.orden       || 'nombre_asc';
+
+        const productos = await Inventario.exportarInventario({ busqueda, tipo, filtroStock, orden });
+        res.json({ success: true, data: productos });
+    } catch (error) {
+        console.error('Error en exportarInventario:', error);
+        res.status(500).json({ success: false, message: 'Error al exportar inventario' });
+    }
+};
+
+module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, exportarInventario };

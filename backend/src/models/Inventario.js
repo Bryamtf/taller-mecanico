@@ -266,6 +266,47 @@ const Inventario = {
     );
     return rows;
   },
+
+  async exportarInventario({ busqueda = '', tipo = '', filtroStock = '', orden = 'nombre_asc' } = {}) {
+    const filtro = `%${busqueda}%`;
+
+    const condiciones = ['a.activo = 1', '(a.nombre LIKE ? OR a.codigo_interno LIKE ? OR a.codigo_barras LIKE ?)'];
+    const params      = [filtro, filtro, filtro];
+
+    if (tipo) { condiciones.push('a.tipo = ?'); params.push(tipo); }
+    if (filtroStock === 'alerta') { condiciones.push('a.alerta_stock = 1'); }
+
+    const where  = condiciones.join(' AND ');
+    const having = filtroStock === 'sinstock' ? 'HAVING stock_total = 0' : '';
+
+    const ordenMap = {
+      nombre_asc:  'a.nombre ASC',  nombre_desc: 'a.nombre DESC',
+      stock_asc:   'stock_total ASC',  stock_desc:  'stock_total DESC',
+      precio_asc:  'precio_min ASC',   precio_desc: 'precio_min DESC',
+    };
+    const orderBy = ordenMap[orden] || 'a.nombre ASC';
+
+    const [rows] = await pool.query(
+      `SELECT
+          a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
+          a.tipo, a.unidad_medida, a.stock_minimo,
+          COALESCE(SUM(amp.stock_actual), 0)                            AS stock_total,
+          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)         AS valor_stock,
+          MIN(amp.precio_venta)                                         AS precio_min,
+          MAX(amp.precio_venta)                                         AS precio_max,
+          GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS marcas
+       FROM Articulos a
+       LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+       LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
+       WHERE ${where}
+       GROUP BY a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
+                a.tipo, a.unidad_medida, a.stock_minimo
+       ${having}
+       ORDER BY ${orderBy}`,
+      params
+    );
+    return rows;
+  },
 };
 
 module.exports = Inventario;

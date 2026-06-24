@@ -44,4 +44,10 @@ router.get(
   inventarioController.obtenerArticulosEnAlerta,
 );
 
+router.get(
+  "/exportar",
+  checkPermiso("ver_inventario"),
+  inventarioController.exportarInventario,
+);
+
 module.exports = router;
