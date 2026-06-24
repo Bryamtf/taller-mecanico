@@ -76,6 +76,20 @@ const obtenerArticulosEnAlerta = async (req, res) => {
     }
 };
 
+const obtenerHistorialPrecios = async (req, res) => {
+    try {
+        const { id }  = req.params;
+        const pagina  = parseInt(req.query.pagina) || 1;
+        const limite  = parseInt(req.query.limite) || 15;
+
+        const resultado = await Inventario.obtenerHistorialPrecios(id, { pagina, limite });
+        res.json({ success: true, ...resultado });
+    } catch (error) {
+        console.error('Error en obtenerHistorialPrecios:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener historial de precios' });
+    }
+};
+
 const exportarInventario = async (req, res) => {
     try {
         const busqueda    = req.query.busqueda    || '';
@@ -91,4 +105,4 @@ const exportarInventario = async (req, res) => {
     }
 };
 
-module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, exportarInventario };
+module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, obtenerHistorialPrecios, exportarInventario };

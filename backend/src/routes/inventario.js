@@ -39,6 +39,12 @@ router.get(
 );
 
 router.get(
+  "/articulos/:id/historial-precios",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerHistorialPrecios,
+);
+
+router.get(
   "/alertas",
   checkPermiso("ver_inventario"),
   inventarioController.obtenerArticulosEnAlerta,
