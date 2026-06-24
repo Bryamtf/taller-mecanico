@@ -32,4 +32,16 @@ router.get(
   inventarioController.obtenerArticulo,
 );
 
+router.get(
+  "/articulos/:id/movimientos",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerMovimientos,
+);
+
+router.get(
+  "/alertas",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerArticulosEnAlerta,
+);
+
 module.exports = router;

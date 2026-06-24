@@ -49,4 +49,29 @@ const obtenerArticulo = async (req, res) => {
     }
 };
 
-module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo };
+const obtenerMovimientos = async (req, res) => {
+    try {
+        const { id }   = req.params;
+        const pagina   = parseInt(req.query.pagina) || 1;
+        const limite   = parseInt(req.query.limite) || 15;
+        const tipo     = req.query.tipo || '';
+
+        const resultado = await Inventario.obtenerMovimientos(id, { pagina, limite, tipo });
+        res.json({ success: true, ...resultado });
+    } catch (error) {
+        console.error('Error en obtenerMovimientos:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener movimientos' });
+    }
+};
+
+const obtenerArticulosEnAlerta = async (req, res) => {
+    try {
+        const articulos = await Inventario.obtenerArticulosEnAlerta();
+        res.json({ success: true, data: articulos });
+    } catch (error) {
+        console.error('Error en obtenerArticulosEnAlerta:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener alertas de stock' });
+    }
+};
+
+module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta };

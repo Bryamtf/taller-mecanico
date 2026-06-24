@@ -153,6 +153,69 @@ const Inventario = {
     );
     return rows;
   },
+
+  async obtenerMovimientos(articuloId, { pagina = 1, limite = 15, tipo = '' } = {}) {
+    const offset      = (pagina - 1) * limite;
+    const condiciones = ['mi.articulo_id = ?'];
+    const params      = [articuloId];
+
+    if (tipo) {
+      condiciones.push('mi.tipo_movimiento = ?');
+      params.push(tipo);
+    }
+
+    const where = condiciones.join(' AND ');
+
+    const [rows] = await pool.query(
+      `SELECT
+          mi.movimiento_id,
+          mi.tipo_movimiento,
+          mi.cantidad,
+          mi.stock_anterior,
+          mi.stock_resultante,
+          mi.motivo,
+          mi.registrado_por,
+          mi.fecha,
+          m.nombre AS marca_nombre
+       FROM Movimiento_inventario mi
+       LEFT JOIN Marca_Repuesto m ON m.marca_id = mi.marca_id
+       WHERE ${where}
+       ORDER BY mi.fecha DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limite, offset]
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM Movimiento_inventario mi WHERE ${where}`,
+      params
+    );
+
+    return {
+      movimientos:  rows,
+      total:        Number(total),
+      pagina,
+      totalPaginas: Math.ceil(Number(total) / limite),
+    };
+  },
+
+  async obtenerArticulosEnAlerta() {
+    const [rows] = await pool.query(
+      `SELECT
+          a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.stock_minimo,
+          COALESCE(SUM(amp.stock_actual), 0) AS stock_total,
+          GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS marcas,
+          (SELECT img.ruta_archivo FROM Imagenes img
+           WHERE img.articulo_id = a.articulo_id AND img.tipo = 'articulo'
+           ORDER BY img.orden ASC LIMIT 1) AS imagen_principal
+       FROM Articulos a
+       LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+       LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
+       WHERE a.activo = 1 AND a.alerta_stock = 1
+       GROUP BY a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.stock_minimo
+       ORDER BY stock_total ASC, a.nombre ASC`
+    );
+    return rows;
+  },
 };
 
 module.exports = Inventario;
