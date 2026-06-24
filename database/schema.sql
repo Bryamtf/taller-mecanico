@@ -227,6 +227,24 @@ CREATE TABLE IF NOT EXISTS Movimiento_inventario (
 ) ENGINE=InnoDB COMMENT='Historial de movimientos de inventario';
 
 
+CREATE TABLE IF NOT EXISTS Historial_precio (
+  historial_id          INT           NOT NULL AUTO_INCREMENT,
+  articulo_id           INT           NOT NULL,
+  marca_id              INT           NOT NULL,
+  marca_nombre          VARCHAR(100)  NULL,
+  precio_venta_anterior DECIMAL(10,2) NULL,
+  precio_venta_nuevo    DECIMAL(10,2) NULL,
+  precio_costo_anterior DECIMAL(10,2) NULL,
+  precio_costo_nuevo    DECIMAL(10,2) NULL,
+  registrado_por        VARCHAR(100)  NULL,
+  fecha                 TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (historial_id),
+  INDEX idx_hp_articulo (articulo_id),
+  CONSTRAINT fk_hp_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_hp_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Historial de cambios de precio por artículo y marca';
+
+
 -- =============================================================
 -- BLOQUE 7 — IMÁGENES
 -- =============================================================
