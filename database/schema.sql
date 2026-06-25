@@ -245,6 +245,26 @@ CREATE TABLE IF NOT EXISTS Historial_precio (
 ) ENGINE=InnoDB COMMENT='Historial de cambios de precio por artículo y marca';
 
 
+CREATE TABLE IF NOT EXISTS Lote (
+  lote_id           INT           NOT NULL AUTO_INCREMENT,
+  articulo_id       INT           NOT NULL,
+  marca_id          INT           NOT NULL,
+  numero_lote       VARCHAR(50)   NULL     COMMENT 'Código de lote del fabricante (opcional)',
+  cantidad_inicial  INT           NOT NULL DEFAULT 0,
+  cantidad_actual   INT           NOT NULL DEFAULT 0,
+  fecha_vencimiento DATE          NULL     COMMENT 'NULL = producto no vence',
+  fecha_ingreso     DATE          NOT NULL,
+  observaciones     VARCHAR(200)  NULL,
+  registrado_por    VARCHAR(100)  NULL,
+  activo            TINYINT(1)    NOT NULL DEFAULT 1,
+  PRIMARY KEY (lote_id),
+  INDEX idx_lote_articulo (articulo_id, marca_id),
+  INDEX idx_lote_vencimiento (fecha_vencimiento),
+  CONSTRAINT fk_lote_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_lote_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Lotes de inventario con seguimiento de vencimiento por artículo y marca';
+
+
 -- =============================================================
 -- BLOQUE 7 — IMÁGENES
 -- =============================================================
