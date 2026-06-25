@@ -5,6 +5,7 @@ const {
   authMiddleware,
   checkPermiso,
   checkRol,
+  checkRolOrPermiso,
 } = require("../middleware/authMiddleware");
 
 router.get(
@@ -17,28 +18,35 @@ router.get(
 router.post(
   "/",
   authMiddleware,
-  checkPermiso("editar_usuarios"),
+  checkRol(["admin", "super_admin"]),
   usuarioController.crearUsuario,
 );
 
 router.put(
   "/:username",
   authMiddleware,
-  checkPermiso("editar_usuarios"),
+  checkRolOrPermiso(["admin", "super_admin"], "editar_usuarios"),
   usuarioController.actualizarUsuario,
 );
 
 router.delete(
   "/:username",
   authMiddleware,
-  checkPermiso("editar_usuarios"),
+  checkRolOrPermiso(["admin", "super_admin"], "editar_usuarios"),
   usuarioController.eliminarUsuario,
+);
+
+router.patch(
+  "/:username/estado",
+  authMiddleware,
+  checkPermiso("editar_usuarios"),
+  usuarioController.cambiarEstado,
 );
 
 router.patch(
   "/:username/reset-password",
   authMiddleware,
-  checkRol(["gerente", "socio"]),
+  checkRol(["admin", "super_admin"]),
   usuarioController.resetPassword,
 );
 
