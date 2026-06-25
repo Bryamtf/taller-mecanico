@@ -1,6 +1,22 @@
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
 
+const normalizarRol = (rol) => String(rol || "").trim().toLowerCase();
+
+const obtenerPermisosRol = async (rol_id) => {
+  const [rows] = await pool.execute(
+    `SELECT p.permiso_id, p.nombre, p.modulo,
+            rp.puede_ver, rp.puede_crear, rp.puede_editar, rp.puede_eliminar
+     FROM Rol_permiso rp
+     JOIN Permiso p ON rp.permiso_id = p.permiso_id
+     WHERE rp.rol_id = ?
+     ORDER BY p.modulo ASC, p.nombre ASC`,
+    [rol_id],
+  );
+
+  return rows;
+};
+
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -14,10 +30,10 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const [rows] = await pool.execute(
-      `SELECT u.username, u.email, u.nombre_completo, u.activo, u.rol_id, r.nombre as rol_nombre
+      `SELECT u.username, u.email, u.nombre_completo, u.activo, u.eliminado, u.rol_id, r.nombre as rol_nombre
              FROM Usuario u
              JOIN Rol r ON u.rol_id = r.rol_id
-             WHERE u.username = ? AND u.activo = 1`,
+             WHERE u.username = ? AND u.activo = 1 AND u.eliminado = 0`,
       [decoded.username],
     );
     if (rows.length === 0) {
@@ -26,12 +42,16 @@ const authMiddleware = async (req, res, next) => {
         message: "Usuario no encontrado o inactivo",
       });
     }
+    const permisos = await obtenerPermisosRol(rows[0].rol_id);
+
     req.user = {
       username: rows[0].username,
       email: rows[0].email,
       nombre_completo: rows[0].nombre_completo,
       rol_id: rows[0].rol_id,
       rol_nombre: rows[0].rol_nombre,
+      rol: rows[0].rol_nombre,
+      permisos,
     };
 
     next();
@@ -106,8 +126,9 @@ const checkPermiso = (permisoNombre) => {
 const checkRol = (rolesPermitidos) => {
   return (req, res, next) => {
     const { rol_nombre } = req.user;
+    const rolNormalizado = normalizarRol(rol_nombre);
 
-    if (!rolesPermitidos.includes(rol_nombre)) {
+    if (!rolesPermitidos.includes(rolNormalizado)) {
       return res.status(403).json({
         success: false,
         message: `Acceso denegado. Se requiere uno de estos roles: ${rolesPermitidos.join(", ")}`,
@@ -116,6 +137,19 @@ const checkRol = (rolesPermitidos) => {
     next();
   };
 };
+
+const checkRolOrPermiso = (rolesPermitidos, permisoNombre) => {
+  const validarPermiso = checkPermiso(permisoNombre);
+
+  return (req, res, next) => {
+    if (rolesPermitidos.includes(normalizarRol(req.user?.rol_nombre))) {
+      return next();
+    }
+
+    return validarPermiso(req, res, next);
+  };
+};
+
 const checkCreador = (tabla, idField, userField = "creado_por") => {
   return async (req, res, next) => {
     try {
@@ -161,5 +195,7 @@ module.exports = {
   authMiddleware,
   checkPermiso,
   checkRol,
+  checkRolOrPermiso,
   checkCreador,
+  obtenerPermisosRol,
 };
