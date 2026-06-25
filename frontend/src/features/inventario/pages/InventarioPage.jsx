@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity, Download, FileSpreadsheet, FileText, TrendingUp } from 'lucide-react';
+import { Search, Plus, Pencil, PowerOff, Power, Package, Tag, ScanLine, History, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, Activity, Download, FileSpreadsheet, FileText, TrendingUp, Layers, CalendarX } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useInventario } from '../hooks/useInventario';
 import ProductoModal from '../components/ProductoModal';
@@ -7,6 +7,8 @@ import GestionMarcasModal from '../components/GestionMarcasModal';
 import HistorialMovimientosModal from '../components/HistorialMovimientosModal';
 import HistorialPreciosModal from '../components/HistorialPreciosModal';
 import AlertasStockModal from '../components/AlertasStockModal';
+import LotesModal from '../components/LotesModal';
+import AlertasVencimientoModal from '../components/AlertasVencimientoModal';
 import BarcodeScannerModal from '@/components/BarcodeScanner/BarcodeScannerModal';
 import { getImageUrl, exportarInventario as exportarDatos } from '../services/inventarioService';
 import { exportarExcel, exportarPDF } from '../utils/exportInventario';
@@ -64,6 +66,9 @@ export default function InventarioPage() {
   const [articuloHistorial, setArticuloHistorial] = useState(null);
   const [preciosOpen, setPreciosOpen]     = useState(false);
   const [articuloPrecios, setArticuloPrecios] = useState(null);
+  const [lotesOpen, setLotesOpen]         = useState(false);
+  const [articuloLotes, setArticuloLotes] = useState(null);
+  const [vencimientoOpen, setVencimientoOpen] = useState(false);
   const [alertasOpen, setAlertasOpen]     = useState(false);
   const [exportOpen, setExportOpen]       = useState(false);
   const [exportando, setExportando]       = useState(false);
@@ -109,6 +114,11 @@ export default function InventarioPage() {
     setPreciosOpen(true);
   };
 
+  const handleVerLotes = (p) => {
+    setArticuloLotes({ articulo_id: p.articulo_id, nombre: p.nombre });
+    setLotesOpen(true);
+  };
+
   const handleToggle = async (p) => {
     const accion = p.activo ? 'desactivar' : 'activar';
     const res = await swalConfirm(
@@ -141,6 +151,10 @@ export default function InventarioPage() {
           <p className="text-sm text-[#bababa]">{total} producto{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button onClick={() => setVencimientoOpen(true)}
+            className="flex items-center justify-center gap-2 border border-red-200 text-red-500 hover:bg-red-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <CalendarX size={16} /> Vencimientos
+          </button>
           <button onClick={() => setAlertasOpen(true)}
             className="flex items-center justify-center gap-2 border border-orange-300 text-orange-500 hover:bg-orange-50 text-sm font-medium px-4 py-2 rounded-lg transition-colors">
             <AlertTriangle size={16} /> Alertas de stock
@@ -348,6 +362,10 @@ export default function InventarioPage() {
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors">
                         <TrendingUp size={15} />
                       </button>
+                      <button onClick={() => handleVerLotes(p)} title="Gestionar lotes"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+                        <Layers size={15} />
+                      </button>
                       <button onClick={() => handleEditar(p.articulo_id)} title="Editar"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-purple-500 hover:bg-purple-50 transition-colors">
                         <Pencil size={15} />
@@ -396,6 +414,17 @@ export default function InventarioPage() {
         open={preciosOpen}
         onClose={() => { setPreciosOpen(false); setArticuloPrecios(null); }}
         articulo={articuloPrecios}
+      />
+
+      <LotesModal
+        open={lotesOpen}
+        onClose={() => { setLotesOpen(false); setArticuloLotes(null); fetchInventario(); }}
+        articulo={articuloLotes}
+      />
+
+      <AlertasVencimientoModal
+        open={vencimientoOpen}
+        onClose={() => setVencimientoOpen(false)}
       />
 
       <BarcodeScannerModal
