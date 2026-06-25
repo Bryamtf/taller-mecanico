@@ -56,4 +56,10 @@ router.get(
   inventarioController.exportarInventario,
 );
 
+router.get(
+  "/lotes/por-vencer",
+  checkPermiso("ver_inventario"),
+  inventarioController.listarLotesPorVencer,
+);
+
 module.exports = router;

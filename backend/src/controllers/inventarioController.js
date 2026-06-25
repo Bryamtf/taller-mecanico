@@ -1,4 +1,5 @@
 const Inventario = require('../models/Inventario');
+const Lote       = require('../models/Lote');
 
 const obtenerInventario = async (req, res) => {
     try {
@@ -105,4 +106,15 @@ const exportarInventario = async (req, res) => {
     }
 };
 
-module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, obtenerHistorialPrecios, exportarInventario };
+const listarLotesPorVencer = async (req, res) => {
+    try {
+        const dias  = parseInt(req.query.dias) || 30;
+        const lotes = await Lote.listarPorVencer(dias);
+        res.json({ success: true, data: lotes });
+    } catch (error) {
+        console.error('Error en listarLotesPorVencer:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener lotes por vencer' });
+    }
+};
+
+module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, obtenerHistorialPrecios, exportarInventario, listarLotesPorVencer };
