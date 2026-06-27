@@ -1,6 +1,11 @@
 const pool = require('../config/database');
 
 pool.query(`
+  ALTER TABLE Articulo_Marca_Precio
+  ADD COLUMN cantidad_reservada INT NOT NULL DEFAULT 0
+`).catch(() => {});
+
+pool.query(`
   CREATE TABLE IF NOT EXISTS Historial_precio (
     historial_id          INT           NOT NULL AUTO_INCREMENT,
     articulo_id           INT           NOT NULL,
@@ -55,7 +60,9 @@ const Inventario = {
       `SELECT
           a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
           a.tipo, a.unidad_medida, a.stock_minimo, a.activo,
-          COALESCE(SUM(amp.stock_actual), 0)        AS stock_total,
+          COALESCE(SUM(amp.stock_actual), 0)                                                             AS stock_total,
+          COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)                                          AS stock_reservado,
+          GREATEST(0, COALESCE(SUM(amp.stock_actual), 0) - COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)) AS stock_disponible,
           COUNT(DISTINCT amp.marca_id)              AS total_marcas,
           MIN(amp.precio_venta)                     AS precio_min,
           MAX(amp.precio_venta)                     AS precio_max,
@@ -100,10 +107,11 @@ const Inventario = {
 
     const [resumenRows] = await pool.query(
       `SELECT
-          COUNT(DISTINCT a.articulo_id)                                       AS totalItems,
-          COALESCE(SUM(amp.stock_actual), 0)                                  AS stockTotal,
-          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)               AS valorTotal,
-          COUNT(DISTINCT CASE WHEN a.alerta_stock = 1 THEN a.articulo_id END) AS articulosEnAlerta
+          COUNT(DISTINCT a.articulo_id)                                            AS totalItems,
+          COALESCE(SUM(amp.stock_actual), 0)                                       AS stockTotal,
+          COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)                    AS stockReservado,
+          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)                    AS valorTotal,
+          COUNT(DISTINCT CASE WHEN a.alerta_stock = 1 THEN a.articulo_id END)      AS articulosEnAlerta
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        WHERE a.activo = 1`
@@ -120,6 +128,7 @@ const Inventario = {
       resumen: {
         totalItems:        Number(r.totalItems),
         stockTotal:        Number(r.stockTotal),
+        stockReservado:    Number(r.stockReservado),
         valorTotal:        Number(r.valorTotal),
         articulosEnAlerta: Number(r.articulosEnAlerta),
         movimientosDelMes: Number(movimientosDelMes),
@@ -197,7 +206,9 @@ const Inventario = {
   async listarArticulos() {
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.marca_id, amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual,
+              GREATEST(0, amp.stock_actual - COALESCE(amp.cantidad_reservada, 0)) AS stock_disponible,
+              m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
@@ -211,7 +222,9 @@ const Inventario = {
     const like = `%${termino}%`;
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.marca_id, amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual,
+              GREATEST(0, amp.stock_actual - COALESCE(amp.cantidad_reservada, 0)) AS stock_disponible,
+              m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id

@@ -1,5 +1,6 @@
 const Cotizacion = require("../models/Cotizacion");
 const DetalleCotizacion = require("../models/DetalleCotizacion");
+const ReservaStock = require("../models/ReservaStock");
 const pdfService = require("../services/pdfService");
 const sharingService = require("../services/sharingService");
 const generarNumeroCotizacion = require("../utils/generarNumeroCotizacion");
@@ -463,7 +464,9 @@ const cotizacionController = {
             const cant = parseInt(detalle.cantidad, 10);
 
             const [rows] = await conn.query(
-              `SELECT amp.stock_actual, a.nombre AS nombre, a.stock_minimo
+              `SELECT amp.stock_actual,
+                      COALESCE(amp.cantidad_reservada, 0) AS cantidad_reservada,
+                      a.nombre AS nombre
                FROM Articulo_Marca_Precio amp
                JOIN Articulos a ON a.articulo_id = amp.articulo_id
                WHERE amp.articulo_id = ? AND amp.marca_id = ?
@@ -473,82 +476,77 @@ const cotizacionController = {
 
             if (!rows.length) continue;
 
-            const { stock_actual, nombre, stock_minimo } = rows[0];
+            const { stock_actual, cantidad_reservada, nombre } = rows[0];
+            const stockDisponible = stock_actual - cantidad_reservada;
 
-            if (stock_actual < cant) {
+            if (stockDisponible < cant) {
               await conn.rollback();
               return res.status(409).json({
                 success: false,
-                message: `Stock insuficiente para "${nombre}". Disponible: ${stock_actual}, requerido: ${cant}`,
+                message: `Stock insuficiente para "${nombre}". Disponible: ${stockDisponible}, requerido: ${cant}`,
+                articulo: nombre,
               });
             }
 
-            const nuevoStock = stock_actual - cant;
-
             await conn.query(
-              `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
-              [nuevoStock, detalle.articulo_id, detalle.marca_id]
+              `UPDATE Articulo_Marca_Precio
+               SET cantidad_reservada = cantidad_reservada + ?
+               WHERE articulo_id = ? AND marca_id = ?`,
+              [cant, detalle.articulo_id, detalle.marca_id]
             );
 
             await conn.query(
-              `INSERT INTO Movimiento_inventario
-                 (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
-               VALUES (?, ?, 'salida', ?, ?, ?, 'cotizacion', ?, ?)`,
-              [detalle.articulo_id, detalle.marca_id, cant, stock_actual, nuevoStock, parseInt(id), req.user?.username || null]
-            );
-
-            await conn.query(
-              `UPDATE Articulos
-               SET alerta_stock = (
-                 SELECT CASE WHEN MIN(amp2.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
-                 FROM Articulo_Marca_Precio amp2 WHERE amp2.articulo_id = ?
-               )
-               WHERE articulo_id = ?`,
-              [detalle.articulo_id, detalle.articulo_id]
+              `INSERT INTO Reserva_Stock (cotizacion_id, articulo_id, marca_id, cantidad)
+               VALUES (?, ?, ?, ?)`,
+              [parseInt(id), detalle.articulo_id, detalle.marca_id, cant]
             );
           }
         }
 
         if (cotizacion.estado === "aprobada") {
-          const [movimientos] = await conn.query(
-            `SELECT articulo_id, marca_id, cantidad
-             FROM Movimiento_inventario
-             WHERE referencia_id = ? AND motivo = 'cotizacion' AND tipo_movimiento = 'salida'`,
+          const [reservas] = await conn.query(
+            `SELECT reserva_id FROM Reserva_Stock WHERE cotizacion_id = ? AND estado = 'activa' LIMIT 1`,
             [parseInt(id)]
           );
 
-          for (const mov of movimientos) {
-            const [rows] = await conn.query(
-              `SELECT stock_actual FROM Articulo_Marca_Precio
-               WHERE articulo_id = ? AND marca_id = ? FOR UPDATE`,
-              [mov.articulo_id, mov.marca_id]
+          if (reservas.length > 0) {
+            await ReservaStock.liberarPorCotizacion(parseInt(id), conn);
+          } else {
+            const [movimientos] = await conn.query(
+              `SELECT articulo_id, marca_id, cantidad
+               FROM Movimiento_inventario
+               WHERE referencia_id = ? AND motivo = 'cotizacion' AND tipo_movimiento = 'salida'`,
+              [parseInt(id)]
             );
-            if (!rows.length) continue;
-
-            const stockAnterior = rows[0].stock_actual;
-            const nuevoStock    = stockAnterior + mov.cantidad;
-
-            await conn.query(
-              `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
-              [nuevoStock, mov.articulo_id, mov.marca_id]
-            );
-
-            await conn.query(
-              `INSERT INTO Movimiento_inventario
-                 (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
-               VALUES (?, ?, 'entrada', ?, ?, ?, 'devolucion_cotizacion', ?, ?)`,
-              [mov.articulo_id, mov.marca_id, mov.cantidad, stockAnterior, nuevoStock, parseInt(id), req.user?.username || null]
-            );
-
-            await conn.query(
-              `UPDATE Articulos
-               SET alerta_stock = (
-                 SELECT CASE WHEN MIN(amp.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
-                 FROM Articulo_Marca_Precio amp WHERE amp.articulo_id = ?
-               )
-               WHERE articulo_id = ?`,
-              [mov.articulo_id, mov.articulo_id]
-            );
+            for (const mov of movimientos) {
+              const [rows] = await conn.query(
+                `SELECT stock_actual FROM Articulo_Marca_Precio
+                 WHERE articulo_id = ? AND marca_id = ? FOR UPDATE`,
+                [mov.articulo_id, mov.marca_id]
+              );
+              if (!rows.length) continue;
+              const stockAnterior = rows[0].stock_actual;
+              const nuevoStock    = stockAnterior + mov.cantidad;
+              await conn.query(
+                `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+                [nuevoStock, mov.articulo_id, mov.marca_id]
+              );
+              await conn.query(
+                `INSERT INTO Movimiento_inventario
+                   (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
+                 VALUES (?, ?, 'entrada', ?, ?, ?, 'devolucion_cotizacion', ?, ?)`,
+                [mov.articulo_id, mov.marca_id, mov.cantidad, stockAnterior, nuevoStock, parseInt(id), req.user?.username || null]
+              );
+              await conn.query(
+                `UPDATE Articulos
+                 SET alerta_stock = (
+                   SELECT CASE WHEN MIN(amp.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+                   FROM Articulo_Marca_Precio amp WHERE amp.articulo_id = ?
+                 )
+                 WHERE articulo_id = ?`,
+                [mov.articulo_id, mov.articulo_id]
+              );
+            }
           }
         }
 
