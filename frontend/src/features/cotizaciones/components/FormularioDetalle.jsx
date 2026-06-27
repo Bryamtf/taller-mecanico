@@ -49,8 +49,9 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
       const response = await articuloService.buscar(busqueda);
       const data = (response.data || []).map((art) => ({
         ...art,
-        precio_venta: Number(art.precio_venta) || 0,
-        stock_actual: Number(art.stock_actual) || 0,
+        precio_venta:    Number(art.precio_venta) || 0,
+        stock_actual:    Number(art.stock_actual) || 0,
+        stock_disponible: art.stock_disponible != null ? Number(art.stock_disponible) : Number(art.stock_actual) || 0,
       }));
       setArticulos(data);
       setMostrarLista(true);
@@ -85,10 +86,15 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
     setArticulos([]);
   };
 
+  const stockRef =
+    articuloSeleccionado?.stock_disponible != null
+      ? articuloSeleccionado.stock_disponible
+      : articuloSeleccionado?.stock_actual ?? null;
+
   const stockInsuficiente =
     !formData.es_servicio &&
-    articuloSeleccionado?.stock_actual != null &&
-    Number(formData.cantidad) > articuloSeleccionado.stock_actual;
+    stockRef != null &&
+    Number(formData.cantidad) > stockRef;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,7 +121,7 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
     if (stockInsuficiente) {
       const result = await Swal.fire({
         title: "Stock insuficiente",
-        html: `El stock disponible es <strong>${articuloSeleccionado.stock_actual}</strong> unidad(es), pero estás agregando <strong>${cantidad}</strong>.<br/><br/>La cotización se guardará, pero podría no aprobarse si el stock no es repuesto a tiempo.`,
+        html: `El stock disponible es <strong>${stockRef}</strong> unidad(es), pero estás agregando <strong>${cantidad}</strong>.<br/><br/>La cotización se guardará, pero podría no aprobarse si el stock no es repuesto a tiempo.`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Agregar de todas formas",
@@ -201,12 +207,12 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
                         <p className="text-xs font-medium">S/ {art.precio_venta.toFixed(2)}</p>
                         <span
                           className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                            art.stock_actual > 0
+                            art.stock_disponible > 0
                               ? "bg-green-100 text-green-700"
                               : "bg-red-100 text-red-700"
                           }`}
                         >
-                          Stock: {art.stock_actual}
+                          Disp: {art.stock_disponible}
                         </span>
                       </div>
                     </div>
@@ -218,7 +224,7 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
 
           {articuloSeleccionado && (
             <div className="flex items-center justify-between mt-1.5 px-2 py-1 bg-[#fdf7e7] border border-[#e5ba4a]/40 rounded text-xs text-[#b8962a]">
-              <span>Artículo vinculado · Stock actual: <strong>{articuloSeleccionado.stock_actual}</strong></span>
+              <span>Artículo vinculado · Stock disponible: <strong>{stockRef}</strong></span>
               <button type="button" onClick={limpiarArticulo} className="ml-2 hover:text-red-500 transition-colors text-gray-400">
                 ✕
               </button>
@@ -241,7 +247,7 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
           {stockInsuficiente && (
             <div className="flex items-center gap-1 mt-1 text-xs text-orange-600">
               <AlertTriangle size={12} />
-              <span>Stock disponible: {articuloSeleccionado.stock_actual}</span>
+              <span>Stock disponible: {stockRef}</span>
             </div>
           )}
         </div>

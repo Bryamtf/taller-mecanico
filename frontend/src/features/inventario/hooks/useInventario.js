@@ -4,7 +4,7 @@ import * as svc from '../services/inventarioService';
 
 export function useInventario() {
   const [productos, setProductos]         = useState([]);
-  const [resumen, setResumen]             = useState({ totalItems: 0, stockTotal: 0, valorTotal: 0, articulosEnAlerta: 0, movimientosDelMes: 0 });
+  const [resumen, setResumen]             = useState({ totalItems: 0, stockTotal: 0, stockReservado: 0, valorTotal: 0, articulosEnAlerta: 0, movimientosDelMes: 0 });
   const [total, setTotal]                 = useState(0);
   const [totalPaginas, setTotalPaginas]   = useState(1);
   const [pagina, setPagina]               = useState(1);

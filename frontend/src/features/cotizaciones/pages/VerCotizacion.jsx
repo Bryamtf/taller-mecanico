@@ -76,7 +76,7 @@ const VerCotizacion = () => {
   const handleAprobar = async () => {
     const result = await Swal.fire({
       title: "¿Aprobar cotización?",
-      text: "Se descontará el stock de los artículos incluidos. Esta acción no se puede deshacer directamente.",
+      text: "El stock de los artículos incluidos quedará reservado. Se descontará definitivamente cuando se genere la venta.",
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Sí, aprobar",
@@ -89,7 +89,7 @@ const VerCotizacion = () => {
     try {
       await cotizacionService.cambiarEstado(id, "aprobada");
       await cargarDatos();
-      Swal.fire({ title: "Aprobada", text: "La cotización fue aprobada y el stock fue descontado.", icon: "success", timer: 2000, showConfirmButton: false });
+      Swal.fire({ title: "Aprobada", text: "La cotización fue aprobada y el stock fue reservado.", icon: "success", timer: 2000, showConfirmButton: false });
     } catch (error) {
       const msg = error?.response?.data?.message || "No se pudo aprobar la cotización.";
       const articulo = error?.response?.data?.articulo;
@@ -109,7 +109,7 @@ const VerCotizacion = () => {
     const labels = { rechazada: "Rechazar", vencida: "Marcar como vencida" };
     const result = await Swal.fire({
       title: `¿${labels[nuevoEstado]} cotización?`,
-      text: "El stock descontado será restaurado automáticamente.",
+      text: "La reserva de stock será liberada automáticamente.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: `Sí, ${labels[nuevoEstado].toLowerCase()}`,
@@ -122,7 +122,7 @@ const VerCotizacion = () => {
     try {
       await cotizacionService.cambiarEstado(id, nuevoEstado);
       await cargarDatos();
-      Swal.fire({ title: "Listo", text: "El estado fue actualizado y el stock fue restaurado.", icon: "success", timer: 2000, showConfirmButton: false });
+      Swal.fire({ title: "Listo", text: "El estado fue actualizado y la reserva de stock fue liberada.", icon: "success", timer: 2000, showConfirmButton: false });
     } catch (error) {
       const msg = error?.response?.data?.message || "No se pudo cambiar el estado.";
       Swal.fire("Error", msg, "error");
@@ -190,6 +190,11 @@ const VerCotizacion = () => {
             >
               {getEstadoTexto(cotizacion.estado)}
             </span>
+            {cotizacion.estado === "aprobada" && (
+              <span className="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-600">
+                Stock reservado
+              </span>
+            )}
 
             {(cotizacion.estado === "borrador" || cotizacion.estado === "pendiente") && (
               <button

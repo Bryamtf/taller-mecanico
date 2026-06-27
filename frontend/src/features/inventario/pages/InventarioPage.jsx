@@ -220,6 +220,9 @@ export default function InventarioPage() {
           <div className="min-w-0">
             <p className="text-xs text-[#bababa] uppercase tracking-wide">Unidades en stock</p>
             <p className="text-2xl font-bold text-gray-800">{resumen.stockTotal.toLocaleString()}</p>
+            {resumen.stockReservado > 0 && (
+              <p className="text-xs text-orange-400">{resumen.stockReservado} reservadas</p>
+            )}
           </div>
         </div>
 
@@ -306,7 +309,7 @@ export default function InventarioPage() {
                 <SortTh col="nombre" label="Producto"    orden={orden} onSort={handleOrden} />
                 <th className="px-4 py-3 font-semibold text-gray-600">Tipo</th>
                 <th className="px-4 py-3 font-semibold text-gray-600">Marcas</th>
-                <SortTh col="stock"  label="Stock"       orden={orden} onSort={handleOrden} className="text-center" />
+                <SortTh col="stock"  label="Disponible"  orden={orden} onSort={handleOrden} className="text-center" />
                 <SortTh col="precio" label="Precio venta" orden={orden} onSort={handleOrden} />
                 <th className="px-4 py-3 font-semibold text-gray-600 text-center">Acciones</th>
               </tr>
@@ -340,14 +343,17 @@ export default function InventarioPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`font-semibold ${
-                      Number(p.stock_total) <= Number(p.stock_minimo) && Number(p.stock_total) > 0
+                      Number(p.stock_disponible) <= Number(p.stock_minimo) && Number(p.stock_disponible) > 0
                         ? 'text-orange-500'
-                        : Number(p.stock_total) === 0
+                        : Number(p.stock_disponible) === 0
                           ? 'text-red-500'
                           : 'text-green-600'
                     }`}>
-                      {p.stock_total}
+                      {p.stock_disponible}
                     </span>
+                    {Number(p.stock_reservado) > 0 && (
+                      <p className="text-[10px] text-orange-400 leading-tight">{p.stock_reservado} res.</p>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {formatPrecio(p)}
