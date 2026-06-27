@@ -197,11 +197,12 @@ CREATE TABLE IF NOT EXISTS Articulos (
 
 
 CREATE TABLE IF NOT EXISTS Articulo_Marca_Precio (
-  articulo_id  INT           NOT NULL,
-  marca_id     INT           NOT NULL,
-  precio_venta DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  precio_costo DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  stock_actual INT           NOT NULL DEFAULT 0,
+  articulo_id        INT           NOT NULL,
+  marca_id           INT           NOT NULL,
+  precio_venta       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  precio_costo       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  stock_actual       INT           NOT NULL DEFAULT 0,
+  cantidad_reservada INT           NOT NULL DEFAULT 0 COMMENT 'Unidades comprometidas en cotizaciones aprobadas pendientes de pago',
   PRIMARY KEY (articulo_id, marca_id),
   CONSTRAINT fk_amp_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
   CONSTRAINT fk_amp_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
@@ -263,6 +264,23 @@ CREATE TABLE IF NOT EXISTS Lote (
   CONSTRAINT fk_lote_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
   CONSTRAINT fk_lote_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB COMMENT='Lotes de inventario con seguimiento de vencimiento por artículo y marca';
+
+
+CREATE TABLE IF NOT EXISTS Reserva_Stock (
+  reserva_id    INT         NOT NULL AUTO_INCREMENT,
+  cotizacion_id INT         NOT NULL,
+  articulo_id   INT         NOT NULL,
+  marca_id      INT         NOT NULL,
+  cantidad      INT         NOT NULL,
+  estado        VARCHAR(20) NOT NULL DEFAULT 'activa' COMMENT 'activa, liberada, consumida',
+  fecha_reserva TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_cierre  TIMESTAMP   NULL,
+  PRIMARY KEY (reserva_id),
+  INDEX idx_rs_cotizacion (cotizacion_id),
+  INDEX idx_rs_articulo   (articulo_id, marca_id),
+  CONSTRAINT fk_rs_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_rs_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Reservas de stock vinculadas a cotizaciones aprobadas pendientes de pago';
 
 
 -- =============================================================
