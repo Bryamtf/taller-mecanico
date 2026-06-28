@@ -29,6 +29,7 @@ const vehiculoRoutes = require("./routes/vehiculo");
 const incidenciaRoutes = require("./routes/incidencias");
 const imagenRoutes = require("./routes/imagenes");
 const proveedorRoutes  = require("./routes/proveedores");
+const ventaRoutes      = require("./routes/ventas");
 
 
 app.use("/api/auth", authRoutes);
@@ -47,6 +48,7 @@ app.use("/api/vehiculos",vehiculoRoutes);
 app.use("/api/incidencias", incidenciaRoutes);
 app.use("/api/imagenes", imagenRoutes);
 app.use("/api/proveedores", proveedorRoutes);
+app.use("/api/ventas", ventaRoutes);
 
 
 // Ruta de prueba
