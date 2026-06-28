@@ -190,7 +190,8 @@ const VerCotizacion = () => {
             >
               {getEstadoTexto(cotizacion.estado)}
             </span>
-            {cotizacion.estado === "aprobada" && (
+            {cotizacion.estado === "aprobada" &&
+              cotizacion.detalles?.some((d) => d.articulo_id && !d.es_servicio) && (
               <span className="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-600">
                 Stock reservado
               </span>
