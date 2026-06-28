@@ -12,6 +12,7 @@ import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
 import VerCotizacion from "@/features/cotizaciones/pages/VerCotizacion";
 import VerCotizacionPublica from "@/features/cotizaciones/pages/VerCotizacionPublica";
+import VentasPage from "@/features/ventas/pages/VentasPage";
 
 export default function AppRoutes() {
   return (
@@ -42,10 +43,7 @@ export default function AppRoutes() {
             element={<EditarCotizacion />}
           />
 
-          <Route
-            path="/ventas"
-            element={<div className="text-xl font-semibold">Ventas</div>}
-          />
+          <Route path="/ventas" element={<VentasPage />} />
           <Route
             path="/reportes"
             element={<div className="text-xl font-semibold">Reportes</div>}
