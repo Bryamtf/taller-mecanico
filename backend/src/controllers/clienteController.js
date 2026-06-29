@@ -74,6 +74,19 @@ const crearCliente = async (req, res) => {
     }
 };
 
+const obtenerClienteVarios = async (req, res) => {
+    try {
+        const [rows] = await require('../config/database').query(
+            `SELECT cliente_id, nombres, apellidos, dni_ruc, telefono FROM Cliente WHERE dni_ruc = '00000000' LIMIT 1`
+        );
+        if (!rows.length) return res.status(404).json({ message: 'Cliente Varios no configurado.' });
+        res.json(rows[0]);
+    } catch (error) {
+        console.error('Error al obtener cliente varios:', error);
+        res.status(500).json({ message: 'Error al obtener cliente varios.' });
+    }
+};
+
 const actualizarCliente = async (req, res) => {
     try {
         const { nombres, apellidos, dni_ruc, telefono, email, direccion } = req.body;
@@ -82,7 +95,12 @@ const actualizarCliente = async (req, res) => {
             return res.status(400).json({ message: 'Nombres y apellidos son obligatorios' });
         }
 
-        const actualizado = await Cliente.actualizar(req.params.id, { nombres, apellidos, dni_ruc, telefono, email, direccion });
+        const existente = await Cliente.buscarPorId(req.params.id);
+        if (!existente) return res.status(404).json({ message: 'Cliente no encontrado' });
+
+        const dniAGuardar = existente.dni_ruc === '00000000' ? '00000000' : dni_ruc;
+
+        const actualizado = await Cliente.actualizar(req.params.id, { nombres, apellidos, dni_ruc: dniAGuardar, telefono, email, direccion });
         if (!actualizado) return res.status(404).json({ message: 'Cliente no encontrado' });
 
         res.json({ message: 'Cliente actualizado correctamente' });
@@ -97,6 +115,13 @@ const cambiarEstadoCliente = async (req, res) => {
         const { activo } = req.body;
         if (activo === undefined) {
             return res.status(400).json({ message: 'El campo activo es requerido' });
+        }
+
+        const existente = await Cliente.buscarPorId(req.params.id);
+        if (!existente) return res.status(404).json({ message: 'Cliente no encontrado' });
+
+        if (existente.dni_ruc === '00000000' && !activo) {
+            return res.status(400).json({ message: 'El cliente "Clientes Varios" no puede ser desactivado.' });
         }
 
         const actualizado = await Cliente.cambiarEstado(req.params.id, activo ? 1 : 0);
@@ -116,4 +141,5 @@ module.exports = {
     crearCliente,
     actualizarCliente,
     cambiarEstadoCliente,
+    obtenerClienteVarios,
 };

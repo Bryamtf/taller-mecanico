@@ -11,6 +11,7 @@ router.get('/historial', checkPermiso('ver_ventas'), ventaController.listarHisto
 router.get('/:id', checkPermiso('ver_ventas'), ventaController.obtenerPorId);
 
 router.post('/', checkPermiso('crear_ventas'), ventaController.generarVenta);
+router.post('/directa', checkPermiso('crear_ventas'), ventaController.generarVentaDirecta);
 router.patch('/:id/anular', checkPermiso('crear_ventas'), ventaController.anularVenta);
 
 module.exports = router;

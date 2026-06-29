@@ -131,6 +131,46 @@ const ventaController = {
     }
   },
 
+  async generarVentaDirecta(req, res) {
+    const conn = await pool.getConnection();
+    try {
+      const { cliente_id, vehiculo_id, detalles, pagos, tipo_comprobante_id, observaciones } = req.body;
+      const username = req.user?.username || 'sistema';
+
+      if (!cliente_id) return res.status(400).json({ message: 'Se requiere cliente_id.' });
+      if (!detalles || !Array.isArray(detalles) || detalles.length === 0)
+        return res.status(400).json({ message: 'Se requiere al menos un ítem.' });
+      if (!pagos || !Array.isArray(pagos) || pagos.length === 0)
+        return res.status(400).json({ message: 'Se requiere al menos un pago.' });
+
+      const subtotal = detalles.reduce((s, d) => s + parseFloat(d.subtotal || 0), 0);
+      const igv      = Math.round(subtotal * 0.18 * 100) / 100;
+      const total    = Math.round((subtotal + igv) * 100) / 100;
+
+      const totalPagos = pagos.reduce((s, p) => s + parseFloat(p.monto || 0), 0);
+      if (Math.abs(totalPagos - total) > 0.05) {
+        return res.status(400).json({
+          message: `El total de pagos (S/ ${totalPagos.toFixed(2)}) no coincide con el total de la venta (S/ ${total.toFixed(2)}).`,
+        });
+      }
+
+      await conn.beginTransaction();
+      const resultado = await Venta.crearDirecta(
+        { cliente_id, vehiculo_id: vehiculo_id || null, detalles, pagos, subtotal, igv, total,
+          tipo_comprobante_id: tipo_comprobante_id || null, observaciones, username },
+        conn
+      );
+      await conn.commit();
+      res.status(201).json({ message: 'Venta directa generada exitosamente.', ...resultado });
+    } catch (error) {
+      await conn.rollback();
+      console.error('generarVentaDirecta:', error);
+      res.status(500).json({ message: error.message || 'Error al generar la venta directa.' });
+    } finally {
+      conn.release();
+    }
+  },
+
   async anularVenta(req, res) {
     const conn = await pool.getConnection();
     try {

@@ -247,6 +247,120 @@ const Venta = {
     return { ventasHoy: Number(hoy.ventasHoy), totalHoy: Number(hoy.totalHoy), pendientes: Number(pendientes) };
   },
 
+  async crearDirecta({ cliente_id, vehiculo_id, detalles, pagos, subtotal, igv, total, tipo_comprobante_id, observaciones, username }, conn) {
+    for (const d of detalles) {
+      if (!d.articulo_id || d.es_servicio) continue;
+      const [[amp]] = await conn.query(
+        `SELECT stock_actual, COALESCE(cantidad_reservada, 0) AS cantidad_reservada
+         FROM Articulo_Marca_Precio WHERE articulo_id = ? AND marca_id = ? FOR UPDATE`,
+        [d.articulo_id, d.marca_id]
+      );
+      if (!amp) throw new Error(`Artículo no encontrado en inventario.`);
+      const disponible = amp.stock_actual - amp.cantidad_reservada;
+      if (disponible < d.cantidad) {
+        throw new Error(`Stock insuficiente para "${d.descripcion_custom}". Disponible: ${disponible}, solicitado: ${d.cantidad}.`);
+      }
+    }
+
+    const numero_venta = await generarNumeroVenta(conn);
+    const pagosArr = pagos || [];
+    const tipo_pago = pagosArr.length === 1 ? pagosArr[0].metodo : 'mixto';
+
+    const [ventaRes] = await conn.query(
+      `INSERT INTO Venta
+         (numero_venta, cliente_id, vehiculo_id, cotizacion_id, atendido_por, estado,
+          tipo_pago, subtotal, descuento, igv, total, observaciones)
+       VALUES (?, ?, ?, NULL, ?, 'completada', ?, ?, 0, ?, ?, ?)`,
+      [numero_venta, cliente_id, vehiculo_id || null, username, tipo_pago, subtotal, igv, total, observaciones || null]
+    );
+    const venta_id = ventaRes.insertId;
+
+    for (const d of detalles) {
+      await conn.query(
+        `INSERT INTO Detalle_venta
+           (venta_id, articulo_id, marca_id, descripcion_custom, es_servicio,
+            cantidad, precio_unitario, descuento, subtotal)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [venta_id, d.articulo_id || null, d.marca_id || null, d.descripcion_custom || null,
+         d.es_servicio || 0, d.cantidad, d.precio_unitario, d.descuento || 0, d.subtotal]
+      );
+
+      if (d.articulo_id && !d.es_servicio) {
+        const [[ampActual]] = await conn.query(
+          `SELECT stock_actual FROM Articulo_Marca_Precio WHERE articulo_id = ? AND marca_id = ?`,
+          [d.articulo_id, d.marca_id]
+        );
+        const nuevoStock = ampActual.stock_actual - d.cantidad;
+        await conn.query(
+          `UPDATE Articulo_Marca_Precio SET stock_actual = ? WHERE articulo_id = ? AND marca_id = ?`,
+          [nuevoStock, d.articulo_id, d.marca_id]
+        );
+        await conn.query(
+          `INSERT INTO Movimiento_inventario
+             (articulo_id, marca_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante, motivo, referencia_id, registrado_por)
+           VALUES (?, ?, 'salida', ?, ?, ?, 'venta_directa', ?, ?)`,
+          [d.articulo_id, d.marca_id, d.cantidad, ampActual.stock_actual, nuevoStock, venta_id, username]
+        );
+        await conn.query(
+          `UPDATE Articulos SET alerta_stock = (
+             SELECT CASE WHEN MIN(a2.stock_actual) <= stock_minimo THEN 1 ELSE 0 END
+             FROM Articulo_Marca_Precio a2 WHERE a2.articulo_id = ?
+           ) WHERE articulo_id = ?`,
+          [d.articulo_id, d.articulo_id]
+        );
+      }
+    }
+
+    for (const p of pagosArr) {
+      await conn.query(
+        `INSERT INTO Pago_venta (venta_id, metodo, monto) VALUES (?, ?, ?)`,
+        [venta_id, p.metodo, p.monto]
+      );
+    }
+
+    let numero_comprobante = null;
+    if (tipo_comprobante_id) {
+      const [[serie]] = await conn.query(
+        `SELECT s.serie_id, s.numero FROM Serie s
+         WHERE s.tipo_comprobante_id = ? AND s.activo = 1 LIMIT 1`,
+        [tipo_comprobante_id]
+      );
+      if (serie) {
+        const [[sc]] = await conn.query(
+          `SELECT correlativo_actual FROM Serie_correlativo WHERE serie_id = ? FOR UPDATE`,
+          [serie.serie_id]
+        );
+        const nuevo = (sc?.correlativo_actual || 0) + 1;
+        await conn.query(
+          `UPDATE Serie_correlativo SET correlativo_actual = ? WHERE serie_id = ?`,
+          [nuevo, serie.serie_id]
+        );
+        numero_comprobante = `${serie.numero}-${String(nuevo).padStart(8, '0')}`;
+        const [compRes] = await conn.query(
+          `INSERT INTO Comprobante
+             (venta_id, serie_id, tipo_comprobante_id, correlativo, numero_completo, generado_por)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [venta_id, serie.serie_id, tipo_comprobante_id, nuevo, numero_comprobante, username]
+        );
+        for (const d of detalles) {
+          await conn.query(
+            `INSERT INTO Detalle_comprobante (comprobante_id, descripcion, cantidad, precio_unitario, igv, subtotal)
+             VALUES (?, ?, ?, ?, 0, ?)`,
+            [compRes.insertId, d.descripcion_custom || 'Ítem', d.cantidad, d.precio_unitario, d.subtotal]
+          );
+        }
+      }
+    }
+
+    await conn.query(
+      `INSERT INTO Ingresos (venta_id, registrado_por, concepto, categoria, tipo_pago, monto, fecha)
+       VALUES (?, ?, ?, 'pago_servicio', ?, ?, CURDATE())`,
+      [venta_id, username, `Venta directa ${numero_venta}${numero_comprobante ? ' · ' + numero_comprobante : ''}`, tipo_pago, total]
+    );
+
+    return { venta_id, numero_venta, numero_comprobante };
+  },
+
   async anular(id, username, conn) {
     const [detalles] = await conn.query(
       `SELECT articulo_id, marca_id, cantidad FROM Detalle_venta
