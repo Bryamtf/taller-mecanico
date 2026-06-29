@@ -77,7 +77,7 @@ const GenerarVentaModal = ({ cotizacion, onClose, onSuccess }) => {
 
   return (
     <Modal open onClose={onClose} title="Generar venta" size="lg">
-      <div className="space-y-5">
+      <div className="space-y-5 px-6 py-4">
         <div className="bg-gray-50 rounded-lg p-4 text-sm">
           <div className="flex justify-between mb-1">
             <span className="text-gray-500">Cotización:</span>

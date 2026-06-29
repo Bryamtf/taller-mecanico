@@ -83,7 +83,7 @@ export default function AlertasVencimientoModal({ open, onClose }) {
 
   return (
     <Modal open={open} onClose={onClose} title="Alertas de vencimiento" size="xl">
-      <div className="space-y-4">
+      <div className="space-y-4 px-6 py-4">
         {/* Chips de filtro */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-400">Mostrar:</span>

@@ -101,7 +101,7 @@ export default function LotesModal({ open, onClose, articulo }) {
 
   return (
     <Modal open={open} onClose={onClose} title={`Lotes — ${articulo?.nombre || ''}`} size="xl">
-      <div className="space-y-4">
+      <div className="space-y-4 px-6 py-4">
         {/* Botón nuevo lote */}
         {!mostrarForm && (
           <button
