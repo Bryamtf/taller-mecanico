@@ -21,6 +21,22 @@ const ventaService = {
     const r = await api.post('/ventas', data);
     return r.data;
   },
+  async generarVentaDirecta(data) {
+    const r = await api.post('/ventas/directa', data);
+    return r.data;
+  },
+  async obtenerClienteVarios() {
+    const r = await api.get('/clientes/varios');
+    return r.data;
+  },
+  async buscarClientes(q) {
+    const r = await api.get('/clientes/buscar', { params: { q } });
+    return r.data.resultados || [];
+  },
+  async obtenerVehiculos(clienteId) {
+    const r = await api.get(`/vehiculos/${clienteId}/vehiculos`);
+    return r.data || [];
+  },
   async anular(id) {
     const r = await api.patch(`/ventas/${id}/anular`);
     return r.data;

@@ -3,6 +3,7 @@ import { ShoppingCart, Clock, CheckCircle, DollarSign, Search, Eye, Receipt } fr
 import ventaService from "../services/ventaService";
 import GenerarVentaModal from "../components/GenerarVentaModal";
 import DetalleVentaModal from "../components/DetalleVentaModal";
+import VentaDirectaModal from "../components/VentaDirectaModal";
 import { swalError } from "@/lib/swal";
 
 const formatMoney = (v) =>
@@ -41,6 +42,7 @@ const VentasPage = () => {
   const [totalPagH, setTotalPagH] = useState(1);
   const [cotizacionModal, setCotizacionModal] = useState(null);
   const [ventaIdDetalle, setVentaIdDetalle] = useState(null);
+  const [ventaDirectaOpen, setVentaDirectaOpen] = useState(false);
 
   const cargarResumen = useCallback(async () => {
     try {
@@ -100,9 +102,17 @@ const VentasPage = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Ventas</h1>
-        <p className="text-sm text-[#bababa]">Gestiona cobros y consulta el historial de ventas</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Ventas</h1>
+          <p className="text-sm text-[#bababa]">Gestiona cobros y consulta el historial de ventas</p>
+        </div>
+        <button
+          onClick={() => setVentaDirectaOpen(true)}
+          className="flex items-center gap-2 bg-[#e5ba4a] hover:bg-[#d4a93a] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          <ShoppingCart size={16} /> Nueva venta
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -304,6 +314,17 @@ const VentasPage = () => {
           ventaId={ventaIdDetalle}
           onClose={() => setVentaIdDetalle(null)}
           onAnulada={handleAnulada}
+        />
+      )}
+
+      {ventaDirectaOpen && (
+        <VentaDirectaModal
+          onClose={() => setVentaDirectaOpen(false)}
+          onSuccess={() => {
+            setVentaDirectaOpen(false);
+            cargarResumen();
+            if (tab === 'historial') cargarHistorial();
+          }}
         />
       )}
     </div>
