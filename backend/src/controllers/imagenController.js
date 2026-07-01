@@ -146,14 +146,11 @@ const imagenController = {
         }
       }
 
-      const rutaAbsoluta = path.join(__dirname, "../../", imagen.ruta_archivo);
-      if (fs.existsSync(rutaAbsoluta)) {
-        fs.unlinkSync(rutaAbsoluta);
-      }
+       await imagenService.eliminarDeCloudinary(imagen.ruta_archivo);
 
-      await pool.execute(`DELETE FROM Imagenes WHERE imagen_id = ?`, [
-        imagenId,
-      ]);
+       await pool.execute(`DELETE FROM Imagenes WHERE imagen_id = ?`, [
+         imagenId,
+       ]);
 
       res.json({
         success: true,
