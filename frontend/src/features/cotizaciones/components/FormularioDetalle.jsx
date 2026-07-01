@@ -55,14 +55,18 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
   };
 
   const seleccionarArticulo = (articulo) => {
+    const descripcion = articulo.marca_nombre
+      ? `${articulo.nombre} (${articulo.marca_nombre})`
+      : articulo.nombre;
+
     setFormData({
       ...formData,
       articulo_id: articulo.articulo_id,
-      descripcion_custom: articulo.nombre,
+      descripcion_custom: descripcion,
       precio_unitario: Number(articulo.precio_venta) || 0,
     });
     setMostrarLista(false);
-    setBusqueda(articulo.nombre);
+    setBusqueda(descripcion);
   };
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -141,13 +145,20 @@ const FormularioDetalle = ({ onAgregar, onCancelar, itemEditar = null }) => {
               <div className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                 {articulos.map((art) => (
                   <div
-                    key={art.articulo_id}
+                    key={`${art.articulo_id}-${art.marca_id || "sin-marca"}`}
                     onClick={() => seleccionarArticulo(art)}
                     className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
                   >
                     <p className="font-medium text-sm">{art.nombre}</p>
                     <p className="text-xs text-gray-500">
-                      Precio: S/ {art.precio_venta.toFixed(2)} | Stock:{" "}
+                      {art.marca_nombre ? (
+                        <span className="font-medium text-blue-600">
+                          {art.marca_nombre}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Sin marca</span>
+                      )}
+                      {" · "}S/ {art.precio_venta.toFixed(2)} · Stock:{" "}
                       {art.stock_actual}
                     </p>
                   </div>
