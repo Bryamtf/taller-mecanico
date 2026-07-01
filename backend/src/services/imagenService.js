@@ -1,13 +1,13 @@
-const fs = require("fs");
-const path = require("path");
 const pool = require("../config/database");
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const imagenService = {
-  /**
-   * Validar archivo de imagen
-   * @param {Object} file - Archivo de multer
-   * @returns {Object} { valido: boolean, error: string }
-   */
   validar(file) {
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -16,8 +16,6 @@ const imagenService = {
         error: "La imagen excede el tamaño máximo de 5 MB",
       };
     }
-
-    // validar formatos permitidos
     const formatosPermitidos = ["image/jpeg", "image/png", "image/webp"];
     if (!formatosPermitidos.includes(file.mimetype)) {
       return {
@@ -27,64 +25,35 @@ const imagenService = {
     }
     return { valido: true, error: null };
   },
-  /**
-   * Generar nombre único para la imagen
-   * @param {number} orden - Número de orden (1, 2, 3...)
-   * @param {string} extension - Extensión del archivo
-   * @returns {string} - Nombre generado
-   */
-  generarNombre(orden, extension) {
-    const timestamp = Date.now();
-    return `img_${orden}.${extension}`;
+
+  async subirACloudinary(buffer, cotizacionId, orden) {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `autonort/cotizaciones/${cotizacionId}`,
+          public_id: `img_${orden}`,
+          overwrite: true,
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        },
+      );
+      stream.end(buffer);
+    });
   },
 
-  /**
-   * Obtener extensión del archivo
-   * @param {string} mimetype - Tipo MIME
-   * @returns {string} - Extensión
-   */
-  getExtension(mimetype) {
-    const extensiones = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/webp": "webp",
-    };
-    return extensiones[mimetype] || "jpg";
-  },
-  /**
-   * Guardar imagen en disco
-   * @param {Object} file - Archivo de multer
-   * @param {number} cotizacionId - ID de la cotización
-   * @param {number} orden - Número de orden
-   * @returns {Promise<string>} - Ruta relativa del archivo guardado
-   */
-  async guardarEnDisco(file, cotizacionId, orden) {
-    const dir = path.join(
-      __dirname,
-      `../../uploads/cotizaciones/${cotizacionId}/imagenes`,
-    );
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+  async eliminarDeCloudinary(rutaArchivo) {
+    try {
+      const matches = rutaArchivo.match(/autonort\/cotizaciones\/\d+\/img_\d+/);
+      if (!matches) return;
+      await cloudinary.uploader.destroy(matches[0]);
+    } catch (error) {
+      console.error("Error al eliminar imagen de Cloudinary:", error);
     }
-    const extension = this.getExtension(file.mimetype);
-    const nombre = this.generarNombre(orden, extension);
-    const rutaAbsoluta = path.join(dir, nombre);
-    const rutaRelativa = `/uploads/cotizaciones/${cotizacionId}/imagenes/${nombre}`;
-
-    // Guardar archivo
-    fs.writeFileSync(rutaAbsoluta, file.buffer);
-
-    return rutaRelativa;
   },
-  /**
-   * Registrar imagen en la base de datos
-   * @param {number} cotizacionId - ID de la cotización
-   * @param {string} ruta - Ruta relativa del archivo
-   * @param {number} orden - Número de orden
-   * @param {string} subidoPor - Username de quien sube
-   * @param {Object} conn - Conexión de BD (para transacción)
-   * @returns {Promise<number>} - ID de la imagen insertada
-   */
+
   async registrarEnBD(
     cotizacionId,
     ruta,
@@ -101,14 +70,7 @@ const imagenService = {
     );
     return result.insertId;
   },
-  /**
-   * Procesar múltiples imágenes (validar, guardar, registrar)
-   * @param {Array} files - Archivos de multer
-   * @param {number} cotizacionId - ID de la cotización
-   * @param {string} subidoPor - Username de quien sube
-   * @param {Object} conn - Conexión de BD
-   * @returns {Promise<Array>} - Lista de rutas guardadas
-   */
+
   async procesarImagenes(
     files,
     cotizacionId,
@@ -129,11 +91,15 @@ const imagenService = {
         throw new Error(`Imagen ${orden}: ${validacion.error}`);
       }
 
-      const ruta = await this.guardarEnDisco(file, cotizacionId, orden);
+      const resultado = await this.subirACloudinary(
+        file.buffer,
+        cotizacionId,
+        orden,
+      );
 
       const imagenId = await this.registrarEnBD(
         cotizacionId,
-        ruta,
+        resultado.secure_url,
         orden,
         subidoPor,
         conn,
@@ -142,7 +108,7 @@ const imagenService = {
 
       resultados.push({
         imagen_id: imagenId,
-        ruta: ruta,
+        ruta: resultado.secure_url,
         orden: orden,
         descripcion,
       });
@@ -150,17 +116,17 @@ const imagenService = {
 
     return resultados;
   },
-  /**
-   * Eliminar carpeta de imágenes de una cotización
-   * @param {number} cotizacionId - ID de la cotización
-   */
-  eliminarCarpetaImagenes(cotizacionId) {
-    const dir = path.join(
-      __dirname,
-      `../../uploads/cotizaciones/${cotizacionId}`,
-    );
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
+
+  async eliminarCarpetaImagenes(cotizacionId) {
+    try {
+      await cloudinary.api.delete_resources_by_prefix(
+        `autonort/cotizaciones/${cotizacionId}/`,
+      );
+      await cloudinary.api.delete_folder(
+        `autonort/cotizaciones/${cotizacionId}`,
+      );
+    } catch (error) {
+      console.error("Error al eliminar carpeta de Cloudinary:", error);
     }
   },
 };
