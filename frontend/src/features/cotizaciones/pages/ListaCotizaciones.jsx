@@ -197,6 +197,7 @@ const ListaCotizaciones = () => {
           { valor: "pendiente", label: "Pendientes", activo: "bg-yellow-600" },
           { valor: "aprobada", label: "Aprobadas", activo: "bg-green-600" },
           { valor: "rechazada", label: "Rechazadas", activo: "bg-red-600" },
+          { valor: "vencida", label: "Vencidas", activo: "bg-gray-600" },
         ].map(({ valor, label, activo }) => (
           <button
             key={valor}

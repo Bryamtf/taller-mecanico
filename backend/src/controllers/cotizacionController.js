@@ -121,7 +121,7 @@ const cotizacionController = {
           igv,
           total,
           fecha_emision: new Date().toISOString().split("T")[0],
-          fecha_vencimiento,
+          fecha_vencimiento: fecha_vencimiento || null,
           fecha_entrega,
           observaciones,
           numero_cotizacion: numeroCotizacion,
@@ -250,6 +250,7 @@ const cotizacionController = {
         observaciones,
         estado,
         fecha_entrega,
+        fecha_vencimiento,
         detalles,
       } = req.body;
       console.log("Datos recibidos para actualización:", req.body);
@@ -302,6 +303,7 @@ const cotizacionController = {
             observaciones,
             estado,
             fecha_entrega: fecha_entrega || null,
+            fecha_vencimiento: fecha_vencimiento || null,
             subtotal,
             descuento: descuentoGlobal,
             igv,

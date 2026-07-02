@@ -3,12 +3,17 @@ import Swal from "sweetalert2";
 import {
   calcularFechaDesdeDias,
   calcularDiasDesdeFecha,
+  inicializarFechaYDias,
 } from "../utils/fechaEntrega";
 
-
 const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
-  const [fechaEntrega, setFechaEntrega] = useState(data.fecha_entrega || "");
-  const [diasEstimados, setDiasEstimados] = useState(data.dias_estimados || "");
+  const entrega = inicializarFechaYDias(data.fecha_entrega);
+  const [fechaEntrega, setFechaEntrega] = useState(entrega.fecha);
+  const [diasEstimados, setDiasEstimados] = useState(entrega.dias);
+
+  const vencimiento = inicializarFechaYDias(data.fecha_vencimiento, 15);
+  const [fechaVencimiento, setFechaVencimiento] = useState(vencimiento.fecha);
+  const [diasVencimiento, setDiasVencimiento] = useState(vencimiento.dias);
   const [mostrarModalPlantilla, setMostrarModalPlantilla] = useState(false);
   const [nombrePlantilla, setNombrePlantilla] = useState("");
   // Cuando cambian los días, actualizar la fecha
@@ -56,6 +61,28 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
       });
     }
   };
+  const handleDiasVencimientoChange = (e) => {
+    let dias = e.target.value;
+    if (dias && parseInt(dias) > 99) dias = "99";
+    setDiasVencimiento(dias);
+
+    if (dias && parseInt(dias) > 0) {
+      const nuevaFecha = calcularFechaDesdeDias(dias);
+      setFechaVencimiento(nuevaFecha);
+      onUpdate({ dias_vencimiento: dias, fecha_vencimiento: nuevaFecha });
+    } else {
+      setFechaVencimiento("");
+      onUpdate({ dias_vencimiento: dias, fecha_vencimiento: "" });
+    }
+  };
+
+  const handleFechaVencimientoChange = (e) => {
+    const fecha = e.target.value;
+    setFechaVencimiento(fecha);
+    const dias = calcularDiasDesdeFecha(fecha);
+    setDiasVencimiento(dias);
+    onUpdate({ fecha_vencimiento: fecha, dias_vencimiento: dias });
+  };
 
   const formatMoney = (value) => {
     return `S/ ${(value || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
@@ -65,6 +92,8 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     onUpdate({
       fecha_entrega: fechaEntrega,
       dias_estimados: diasEstimados,
+      fecha_vencimiento: fechaVencimiento,
+      dias_vencimiento: diasVencimiento,
     });
     setMostrarModalPlantilla(true);
   };
@@ -171,6 +200,41 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
               <p className="text-xs text-gray-400 mt-1">
                 O seleccione una fecha específica
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Fecha de vencimiento */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-gray-700 mb-3">
+            Vigencia de la Cotización
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Días de vigencia
+              </label>
+              <input
+                type="number"
+                value={diasVencimiento}
+                onChange={handleDiasVencimientoChange}
+                placeholder="Ej: 15"
+                min="1"
+                max="99"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Por defecto 15 días</p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento
+              </label>
+              <input
+                type="date"
+                value={fechaVencimiento}
+                onChange={handleFechaVencimientoChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
         </div>
