@@ -110,11 +110,17 @@ export default function ClienteModal({ open, onClose, onSave, cliente }) {
             <label className={labelClass}>DNI / RUC</label>
             <input
               {...register('dni_ruc', {
-                pattern: { value: /^\d{8}$|^\d{11}$/, message: 'Debe tener 8 (DNI) u 11 dígitos (RUC)' },
+                pattern: cliente?.dni_ruc !== '00000000'
+                  ? { value: /^\d{8}$|^\d{11}$/, message: 'Debe tener 8 (DNI) u 11 dígitos (RUC)' }
+                  : undefined,
               })}
               placeholder="8 u 11 dígitos"
-              className={inputClass}
+              disabled={cliente?.dni_ruc === '00000000'}
+              className={`${inputClass} ${cliente?.dni_ruc === '00000000' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
             />
+            {cliente?.dni_ruc === '00000000' && (
+              <p className="text-xs text-gray-400 mt-0.5">DNI protegido — cliente del sistema</p>
+            )}
             {errors.dni_ruc && <p className={errorClass}>{errors.dni_ruc.message}</p>}
           </div>
           <div>

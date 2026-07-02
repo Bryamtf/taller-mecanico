@@ -5,6 +5,7 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import ClientesPage    from "@/features/clientes/pages/ClientesPage";
 import InventarioPage  from "@/features/inventario/pages/InventarioPage";
 import IncidenciasPage from "@/features/incidencias/pages/IncidenciasPage";
+import ProveedoresPage from "@/features/proveedores/pages/ProveedoresPage";
 import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 
 import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
@@ -12,6 +13,7 @@ import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
 import VerCotizacion from "@/features/cotizaciones/pages/VerCotizacion";
 import VerCotizacionPublica from "@/features/cotizaciones/pages/VerCotizacionPublica";
+import VentasPage from "@/features/ventas/pages/VentasPage";
 
 export default function AppRoutes() {
   return (
@@ -32,6 +34,7 @@ export default function AppRoutes() {
             element={<div className="text-xl font-semibold">Citas</div>}
           />
           <Route path="/inventario" element={<InventarioPage />} />
+          <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/incidencias" element={<IncidenciasPage />} />
           <Route path="/cotizaciones" element={<ListaCotizaciones />} />
           <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />
@@ -41,10 +44,7 @@ export default function AppRoutes() {
             element={<EditarCotizacion />}
           />
 
-          <Route
-            path="/ventas"
-            element={<div className="text-xl font-semibold">Ventas</div>}
-          />
+          <Route path="/ventas" element={<VentasPage />} />
           <Route
             path="/reportes"
             element={<div className="text-xl font-semibold">Reportes</div>}

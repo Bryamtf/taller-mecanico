@@ -32,4 +32,34 @@ router.get(
   inventarioController.obtenerArticulo,
 );
 
+router.get(
+  "/articulos/:id/movimientos",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerMovimientos,
+);
+
+router.get(
+  "/articulos/:id/historial-precios",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerHistorialPrecios,
+);
+
+router.get(
+  "/alertas",
+  checkPermiso("ver_inventario"),
+  inventarioController.obtenerArticulosEnAlerta,
+);
+
+router.get(
+  "/exportar",
+  checkPermiso("ver_inventario"),
+  inventarioController.exportarInventario,
+);
+
+router.get(
+  "/lotes/por-vencer",
+  checkPermiso("ver_inventario"),
+  inventarioController.listarLotesPorVencer,
+);
+
 module.exports = router;

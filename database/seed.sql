@@ -29,10 +29,13 @@ VALUES (
 );-- Taller123
 
 --  Datos de Correlativo
-INSERT INTO Correlativo_Cotizacion (anio, ultimo_numero) 
+INSERT INTO Correlativo_Cotizacion (anio, ultimo_numero)
 VALUES (2026, 0)
 ON DUPLICATE KEY UPDATE anio = anio;
 
+-- Cliente genérico para ventas de mostrador sin identificación (SUNAT: "Clientes Varios")
+INSERT IGNORE INTO Cliente (nombres, apellidos, dni_ruc, activo)
+VALUES ('Clientes', 'Varios', '00000000', 1);
 -- añadido por Sebastián para features del Front
 -- Rol supremo para administracion completa del modulo de Usuarios y Roles.
 -- Ejecutar manualmente en phpMyAdmin despues del bloque de schema.sql que agrega Usuario.eliminado.

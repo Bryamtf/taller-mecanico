@@ -26,3 +26,15 @@ export const agregarMarca  = (artId, data)            => api.post(`/articulos/${
 export const updateMarca   = (artId, marcaId, data)   => api.put(`/articulos/${artId}/marcas/${marcaId}`, data).then(r => r.data);
 export const deleteMarca   = (artId, marcaId)         => api.delete(`/articulos/${artId}/marcas/${marcaId}`).then(r => r.data);
 export const ajustarStock  = (artId, marcaId, data)   => api.post(`/articulos/${artId}/marcas/${marcaId}/ajuste`, data).then(r => r.data);
+
+export const getMovimientos        = (artId, params) => api.get(`/inventario/articulos/${artId}/movimientos`, { params }).then(r => r.data);
+export const getArticulosEnAlerta  = ()              => api.get('/inventario/alertas').then(r => r.data);
+export const getHistorialPrecios   = (artId, params) => api.get(`/inventario/articulos/${artId}/historial-precios`, { params }).then(r => r.data);
+export const exportarInventario    = (params)        => api.get('/inventario/exportar', { params }).then(r => r.data);
+
+// Lotes
+export const getLotes              = (artId)              => api.get(`/articulos/${artId}/lotes`).then(r => r.data);
+export const createLote            = (artId, data)        => api.post(`/articulos/${artId}/lotes`, data).then(r => r.data);
+export const updateLote            = (artId, loteId, data) => api.patch(`/articulos/${artId}/lotes/${loteId}`, data).then(r => r.data);
+export const deleteLote            = (artId, loteId)      => api.delete(`/articulos/${artId}/lotes/${loteId}`).then(r => r.data);
+export const getLotesPorVencer     = (dias)               => api.get('/inventario/lotes/por-vencer', { params: { dias } }).then(r => r.data);

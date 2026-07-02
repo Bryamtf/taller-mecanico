@@ -1,13 +1,16 @@
 const Inventario = require('../models/Inventario');
+const Lote       = require('../models/Lote');
 
 const obtenerInventario = async (req, res) => {
     try {
-        const pagina   = parseInt(req.query.pagina)  || 1;
-        const limite   = parseInt(req.query.limite)  || 10;
-        const busqueda = req.query.busqueda || '';
-        const tipo     = req.query.tipo     || '';
+        const pagina      = parseInt(req.query.pagina) || 1;
+        const limite      = parseInt(req.query.limite) || 10;
+        const busqueda    = req.query.busqueda    || '';
+        const tipo        = req.query.tipo        || '';
+        const filtroStock = req.query.filtroStock || '';
+        const orden       = req.query.orden       || 'nombre_asc';
 
-        const resultado = await Inventario.obtenerInventarioCompleto({ pagina, limite, busqueda, tipo });
+        const resultado = await Inventario.obtenerInventarioCompleto({ pagina, limite, busqueda, tipo, filtroStock, orden });
         res.json({ success: true, ...resultado });
     } catch (error) {
         console.error('Error en obtenerInventario:', error);
@@ -49,4 +52,69 @@ const obtenerArticulo = async (req, res) => {
     }
 };
 
-module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo };
+const obtenerMovimientos = async (req, res) => {
+    try {
+        const { id }   = req.params;
+        const pagina   = parseInt(req.query.pagina) || 1;
+        const limite   = parseInt(req.query.limite) || 15;
+        const tipo     = req.query.tipo || '';
+
+        const resultado = await Inventario.obtenerMovimientos(id, { pagina, limite, tipo });
+        res.json({ success: true, ...resultado });
+    } catch (error) {
+        console.error('Error en obtenerMovimientos:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener movimientos' });
+    }
+};
+
+const obtenerArticulosEnAlerta = async (req, res) => {
+    try {
+        const articulos = await Inventario.obtenerArticulosEnAlerta();
+        res.json({ success: true, data: articulos });
+    } catch (error) {
+        console.error('Error en obtenerArticulosEnAlerta:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener alertas de stock' });
+    }
+};
+
+const obtenerHistorialPrecios = async (req, res) => {
+    try {
+        const { id }  = req.params;
+        const pagina  = parseInt(req.query.pagina) || 1;
+        const limite  = parseInt(req.query.limite) || 15;
+
+        const resultado = await Inventario.obtenerHistorialPrecios(id, { pagina, limite });
+        res.json({ success: true, ...resultado });
+    } catch (error) {
+        console.error('Error en obtenerHistorialPrecios:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener historial de precios' });
+    }
+};
+
+const exportarInventario = async (req, res) => {
+    try {
+        const busqueda    = req.query.busqueda    || '';
+        const tipo        = req.query.tipo        || '';
+        const filtroStock = req.query.filtroStock || '';
+        const orden       = req.query.orden       || 'nombre_asc';
+
+        const productos = await Inventario.exportarInventario({ busqueda, tipo, filtroStock, orden });
+        res.json({ success: true, data: productos });
+    } catch (error) {
+        console.error('Error en exportarInventario:', error);
+        res.status(500).json({ success: false, message: 'Error al exportar inventario' });
+    }
+};
+
+const listarLotesPorVencer = async (req, res) => {
+    try {
+        const dias  = parseInt(req.query.dias) || 30;
+        const lotes = await Lote.listarPorVencer(dias);
+        res.json({ success: true, data: lotes });
+    } catch (error) {
+        console.error('Error en listarLotesPorVencer:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener lotes por vencer' });
+    }
+};
+
+module.exports = { obtenerInventario, listarArticulos, buscarArticulos, obtenerArticulo, obtenerMovimientos, obtenerArticulosEnAlerta, obtenerHistorialPrecios, exportarInventario, listarLotesPorVencer };

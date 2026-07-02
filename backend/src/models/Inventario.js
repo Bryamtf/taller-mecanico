@@ -1,8 +1,32 @@
 const pool = require('../config/database');
 
+pool.query(`
+  ALTER TABLE Articulo_Marca_Precio
+  ADD COLUMN cantidad_reservada INT NOT NULL DEFAULT 0
+`).catch(() => {});
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS Historial_precio (
+    historial_id          INT           NOT NULL AUTO_INCREMENT,
+    articulo_id           INT           NOT NULL,
+    marca_id              INT           NOT NULL,
+    marca_nombre          VARCHAR(100)  NULL,
+    precio_venta_anterior DECIMAL(10,2) NULL,
+    precio_venta_nuevo    DECIMAL(10,2) NULL,
+    precio_costo_anterior DECIMAL(10,2) NULL,
+    precio_costo_nuevo    DECIMAL(10,2) NULL,
+    registrado_por        VARCHAR(100)  NULL,
+    fecha                 TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (historial_id),
+    INDEX idx_hp_articulo (articulo_id),
+    CONSTRAINT fk_hp_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)   ON DELETE CASCADE  ON UPDATE CASCADE,
+    CONSTRAINT fk_hp_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id) ON DELETE RESTRICT ON UPDATE CASCADE
+  ) ENGINE=InnoDB
+`).catch(() => {});
+
 const Inventario = {
 
-  async obtenerInventarioCompleto({ pagina = 1, limite = 10, busqueda = '', tipo = '' } = {}) {
+  async obtenerInventarioCompleto({ pagina = 1, limite = 10, busqueda = '', tipo = '', filtroStock = '', orden = 'nombre_asc' } = {}) {
     const offset = (pagina - 1) * limite;
     const filtro = `%${busqueda}%`;
 
@@ -14,13 +38,31 @@ const Inventario = {
       params.push(tipo);
     }
 
+    if (filtroStock === 'alerta') {
+      condiciones.push('a.alerta_stock = 1');
+    }
+
     const where = condiciones.join(' AND ');
+
+    const having = filtroStock === 'sinstock' ? 'HAVING stock_total = 0' : '';
+
+    const ordenMap = {
+      nombre_asc:  'a.nombre ASC',
+      nombre_desc: 'a.nombre DESC',
+      stock_asc:   'stock_total ASC',
+      stock_desc:  'stock_total DESC',
+      precio_asc:  'precio_min ASC',
+      precio_desc: 'precio_min DESC',
+    };
+    const orderBy = ordenMap[orden] || 'a.nombre ASC';
 
     const [rows] = await pool.query(
       `SELECT
           a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
           a.tipo, a.unidad_medida, a.stock_minimo, a.activo,
-          COALESCE(SUM(amp.stock_actual), 0)        AS stock_total,
+          COALESCE(SUM(amp.stock_actual), 0)                                                             AS stock_total,
+          COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)                                          AS stock_reservado,
+          GREATEST(0, COALESCE(SUM(amp.stock_actual), 0) - COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)) AS stock_disponible,
           COUNT(DISTINCT amp.marca_id)              AS total_marcas,
           MIN(amp.precio_venta)                     AS precio_min,
           MAX(amp.precio_venta)                     AS precio_max,
@@ -34,27 +76,63 @@ const Inventario = {
        WHERE ${where}
        GROUP BY a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
                 a.tipo, a.unidad_medida, a.stock_minimo, a.activo
-       ORDER BY a.nombre ASC
+       ${having}
+       ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
       [...params, limite, offset]
     );
 
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(DISTINCT a.articulo_id) AS total
-       FROM Articulos a WHERE ${where}`,
-      params
-    );
+    let total;
+    if (filtroStock === 'sinstock') {
+      const [[{ total: t }]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM (
+           SELECT a.articulo_id
+           FROM Articulos a
+           LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+           WHERE ${where}
+           GROUP BY a.articulo_id
+           HAVING COALESCE(SUM(amp.stock_actual), 0) = 0
+         ) sub`,
+        params
+      );
+      total = t;
+    } else {
+      const [[{ total: t }]] = await pool.query(
+        `SELECT COUNT(DISTINCT a.articulo_id) AS total
+         FROM Articulos a WHERE ${where}`,
+        params
+      );
+      total = t;
+    }
 
-    const [resumen] = await pool.query(
-      `SELECT COUNT(DISTINCT a.articulo_id)      AS totalItems,
-              COALESCE(SUM(amp.stock_actual), 0) AS stockTotal
+    const [resumenRows] = await pool.query(
+      `SELECT
+          COUNT(DISTINCT a.articulo_id)                                            AS totalItems,
+          COALESCE(SUM(amp.stock_actual), 0)                                       AS stockTotal,
+          COALESCE(SUM(COALESCE(amp.cantidad_reservada, 0)), 0)                    AS stockReservado,
+          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)                    AS valorTotal,
+          COUNT(DISTINCT CASE WHEN a.alerta_stock = 1 THEN a.articulo_id END)      AS articulosEnAlerta
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        WHERE a.activo = 1`
     );
 
+    const [[{ movimientosDelMes }]] = await pool.query(
+      `SELECT COUNT(*) AS movimientosDelMes
+       FROM Movimiento_inventario
+       WHERE MONTH(fecha) = MONTH(CURDATE()) AND YEAR(fecha) = YEAR(CURDATE())`
+    );
+
+    const r = resumenRows[0];
     return {
-      resumen:      { totalItems: Number(resumen[0].totalItems), stockTotal: Number(resumen[0].stockTotal) },
+      resumen: {
+        totalItems:        Number(r.totalItems),
+        stockTotal:        Number(r.stockTotal),
+        stockReservado:    Number(r.stockReservado),
+        valorTotal:        Number(r.valorTotal),
+        articulosEnAlerta: Number(r.articulosEnAlerta),
+        movimientosDelMes: Number(movimientosDelMes),
+      },
       productos:    rows,
       total:        Number(total),
       pagina,
@@ -128,7 +206,9 @@ const Inventario = {
   async listarArticulos() {
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual,
+              GREATEST(0, amp.stock_actual - COALESCE(amp.cantidad_reservada, 0)) AS stock_disponible,
+              m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
@@ -142,7 +222,9 @@ const Inventario = {
     const like = `%${termino}%`;
     const [rows] = await pool.query(
       `SELECT a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.unidad_medida,
-              amp.precio_venta, amp.stock_actual, m.nombre AS marca_nombre
+              amp.marca_id, amp.precio_venta, amp.stock_actual,
+              GREATEST(0, amp.stock_actual - COALESCE(amp.cantidad_reservada, 0)) AS stock_disponible,
+              m.nombre AS marca_nombre
        FROM Articulos a
        LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
        LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
@@ -150,6 +232,136 @@ const Inventario = {
        ORDER BY a.nombre ASC
        LIMIT 20`,
       [like, like]
+    );
+    return rows;
+  },
+
+  async obtenerMovimientos(articuloId, { pagina = 1, limite = 15, tipo = '' } = {}) {
+    const offset      = (pagina - 1) * limite;
+    const condiciones = ['mi.articulo_id = ?'];
+    const params      = [articuloId];
+
+    if (tipo) {
+      condiciones.push('mi.tipo_movimiento = ?');
+      params.push(tipo);
+    }
+
+    const where = condiciones.join(' AND ');
+
+    const [rows] = await pool.query(
+      `SELECT
+          mi.movimiento_id,
+          mi.tipo_movimiento,
+          mi.cantidad,
+          mi.stock_anterior,
+          mi.stock_resultante,
+          mi.motivo,
+          mi.registrado_por,
+          mi.fecha,
+          m.nombre AS marca_nombre
+       FROM Movimiento_inventario mi
+       LEFT JOIN Marca_Repuesto m ON m.marca_id = mi.marca_id
+       WHERE ${where}
+       ORDER BY mi.fecha DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limite, offset]
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM Movimiento_inventario mi WHERE ${where}`,
+      params
+    );
+
+    return {
+      movimientos:  rows,
+      total:        Number(total),
+      pagina,
+      totalPaginas: Math.ceil(Number(total) / limite),
+    };
+  },
+
+  async obtenerArticulosEnAlerta() {
+    const [rows] = await pool.query(
+      `SELECT
+          a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.stock_minimo,
+          COALESCE(SUM(amp.stock_actual), 0) AS stock_total,
+          GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS marcas,
+          (SELECT img.ruta_archivo FROM Imagenes img
+           WHERE img.articulo_id = a.articulo_id AND img.tipo = 'articulo'
+           ORDER BY img.orden ASC LIMIT 1) AS imagen_principal
+       FROM Articulos a
+       LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+       LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
+       WHERE a.activo = 1 AND a.alerta_stock = 1
+       GROUP BY a.articulo_id, a.nombre, a.codigo_interno, a.tipo, a.stock_minimo
+       ORDER BY stock_total ASC, a.nombre ASC`
+    );
+    return rows;
+  },
+
+  async obtenerHistorialPrecios(articuloId, { pagina = 1, limite = 15 } = {}) {
+    const offset = (pagina - 1) * limite;
+
+    const [rows] = await pool.query(
+      `SELECT
+          hp.historial_id,
+          hp.marca_nombre,
+          hp.precio_venta_anterior, hp.precio_venta_nuevo,
+          hp.precio_costo_anterior, hp.precio_costo_nuevo,
+          hp.registrado_por,
+          hp.fecha
+       FROM Historial_precio hp
+       WHERE hp.articulo_id = ?
+       ORDER BY hp.fecha DESC
+       LIMIT ? OFFSET ?`,
+      [articuloId, limite, offset]
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM Historial_precio WHERE articulo_id = ?`,
+      [articuloId]
+    );
+
+    return { registros: rows, total: Number(total), pagina, totalPaginas: Math.ceil(Number(total) / limite) };
+  },
+
+  async exportarInventario({ busqueda = '', tipo = '', filtroStock = '', orden = 'nombre_asc' } = {}) {
+    const filtro = `%${busqueda}%`;
+
+    const condiciones = ['a.activo = 1', '(a.nombre LIKE ? OR a.codigo_interno LIKE ? OR a.codigo_barras LIKE ?)'];
+    const params      = [filtro, filtro, filtro];
+
+    if (tipo) { condiciones.push('a.tipo = ?'); params.push(tipo); }
+    if (filtroStock === 'alerta') { condiciones.push('a.alerta_stock = 1'); }
+
+    const where  = condiciones.join(' AND ');
+    const having = filtroStock === 'sinstock' ? 'HAVING stock_total = 0' : '';
+
+    const ordenMap = {
+      nombre_asc:  'a.nombre ASC',  nombre_desc: 'a.nombre DESC',
+      stock_asc:   'stock_total ASC',  stock_desc:  'stock_total DESC',
+      precio_asc:  'precio_min ASC',   precio_desc: 'precio_min DESC',
+    };
+    const orderBy = ordenMap[orden] || 'a.nombre ASC';
+
+    const [rows] = await pool.query(
+      `SELECT
+          a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
+          a.tipo, a.unidad_medida, a.stock_minimo,
+          COALESCE(SUM(amp.stock_actual), 0)                            AS stock_total,
+          COALESCE(SUM(amp.stock_actual * amp.precio_costo), 0)         AS valor_stock,
+          MIN(amp.precio_venta)                                         AS precio_min,
+          MAX(amp.precio_venta)                                         AS precio_max,
+          GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS marcas
+       FROM Articulos a
+       LEFT JOIN Articulo_Marca_Precio amp ON amp.articulo_id = a.articulo_id
+       LEFT JOIN Marca_Repuesto m           ON m.marca_id     = amp.marca_id
+       WHERE ${where}
+       GROUP BY a.articulo_id, a.codigo_interno, a.codigo_barras, a.nombre,
+                a.tipo, a.unidad_medida, a.stock_minimo
+       ${having}
+       ORDER BY ${orderBy}`,
+      params
     );
     return rows;
   },

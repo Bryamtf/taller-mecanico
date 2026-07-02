@@ -5,6 +5,8 @@ import {
   PencilIcon,
   DocumentArrowDownIcon,
   ArrowPathIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import Swal from "sweetalert2";
 import cotizacionService from "../services/cotizacionService";
@@ -47,6 +49,7 @@ const VerCotizacion = () => {
   const [cotizacion, setCotizacion] = useState(null);
   const [imagenes, setImagenes] = useState([]);
   const [descargando, setDescargando] = useState(false);
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -67,6 +70,64 @@ const VerCotizacion = () => {
       navigate("/cotizaciones");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAprobar = async () => {
+    const result = await Swal.fire({
+      title: "¿Aprobar cotización?",
+      text: "El stock de los artículos incluidos quedará reservado. Se descontará definitivamente cuando se genere la venta.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Sí, aprobar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#16a34a",
+    });
+    if (!result.isConfirmed) return;
+
+    setCambiandoEstado(true);
+    try {
+      await cotizacionService.cambiarEstado(id, "aprobada");
+      await cargarDatos();
+      Swal.fire({ title: "Aprobada", text: "La cotización fue aprobada y el stock fue reservado.", icon: "success", timer: 2000, showConfirmButton: false });
+    } catch (error) {
+      const msg = error?.response?.data?.message || "No se pudo aprobar la cotización.";
+      const articulo = error?.response?.data?.articulo;
+      Swal.fire({
+        title: "Error al aprobar",
+        html: articulo
+          ? `<p>${msg}</p><p class="mt-2 text-sm text-gray-600">Artículo: <strong>${articulo}</strong></p>`
+          : msg,
+        icon: "error",
+      });
+    } finally {
+      setCambiandoEstado(false);
+    }
+  };
+
+  const handleCambiarEstadoDesdeAprobada = async (nuevoEstado) => {
+    const labels = { rechazada: "Rechazar", vencida: "Marcar como vencida" };
+    const result = await Swal.fire({
+      title: `¿${labels[nuevoEstado]} cotización?`,
+      text: "La reserva de stock será liberada automáticamente.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: `Sí, ${labels[nuevoEstado].toLowerCase()}`,
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: nuevoEstado === "rechazada" ? "#dc2626" : "#6b7280",
+    });
+    if (!result.isConfirmed) return;
+
+    setCambiandoEstado(true);
+    try {
+      await cotizacionService.cambiarEstado(id, nuevoEstado);
+      await cargarDatos();
+      Swal.fire({ title: "Listo", text: "El estado fue actualizado y la reserva de stock fue liberada.", icon: "success", timer: 2000, showConfirmButton: false });
+    } catch (error) {
+      const msg = error?.response?.data?.message || "No se pudo cambiar el estado.";
+      Swal.fire("Error", msg, "error");
+    } finally {
+      setCambiandoEstado(false);
     }
   };
 
@@ -123,12 +184,63 @@ const VerCotizacion = () => {
               {cotizacion.numero_cotizacion || `#${cotizacion.cotizacion_id}`}
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`text-xs px-3 py-1 rounded-full ${getEstadoColor(cotizacion.estado)}`}
             >
               {getEstadoTexto(cotizacion.estado)}
             </span>
+            {cotizacion.estado === "aprobada" &&
+              cotizacion.detalles?.some((d) => d.articulo_id && !d.es_servicio) && (
+              <span className="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-600">
+                Stock reservado
+              </span>
+            )}
+
+            {(cotizacion.estado === "borrador" || cotizacion.estado === "pendiente") && (
+              <button
+                onClick={handleAprobar}
+                disabled={cambiandoEstado}
+                className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {cambiandoEstado ? (
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircleIcon className="w-4 h-4" />
+                )}
+                Aprobar
+              </button>
+            )}
+
+            {cotizacion.estado === "aprobada" && (
+              <>
+                <button
+                  onClick={() => handleCambiarEstadoDesdeAprobada("rechazada")}
+                  disabled={cambiandoEstado}
+                  className="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {cambiandoEstado ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XCircleIcon className="w-4 h-4" />
+                  )}
+                  Rechazar
+                </button>
+                <button
+                  onClick={() => handleCambiarEstadoDesdeAprobada("vencida")}
+                  disabled={cambiandoEstado}
+                  className="text-sm bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {cambiandoEstado ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XCircleIcon className="w-4 h-4" />
+                  )}
+                  Marcar vencida
+                </button>
+              </>
+            )}
+
             {!soloLectura && (
               <button
                 onClick={() => navigate(`/cotizaciones/${id}/editar`)}
