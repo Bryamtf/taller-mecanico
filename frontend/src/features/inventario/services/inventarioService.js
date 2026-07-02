@@ -1,8 +1,15 @@
 import api from '@/lib/axios';
+export const BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+).replace(/\/api\/?$/, "");
 
-export const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
-export const getImageUrl = (ruta) => `${BASE_URL}${ruta}`;
-
+export const getImageUrl = (ruta) => {
+  if (!ruta) return "";
+  if (ruta.startsWith("http://") || ruta.startsWith("https://")) {
+    return ruta;
+  }
+  return `${BASE_URL}${ruta}`;
+};
 // Inventario
 export const getInventario  = (params) => api.get('/inventario', { params }).then(r => r.data);
 export const getArticulo    = (id)     => api.get(`/inventario/articulos/${id}`).then(r => r.data);

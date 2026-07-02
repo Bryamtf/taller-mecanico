@@ -1,111 +1,148 @@
 const fs   = require('fs');
 const path = require('path');
 const Articulo = require('../models/Articulo');
-const pool     = require('../config/database');
+const pool = require('../config/database');
+const cloudinary = require("cloudinary").v2;
+
+const subirImagenArticuloACloudinary = (buffer, articuloId, orden) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: `autonort/articulos/${articuloId}`,
+        public_id: `img_${orden}`,
+        overwrite: true,
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      },
+    );
+    stream.end(buffer);
+  });
+};
 
 const crearNuevoArticulo = async (req, res) => {
-    try {
-        const datosArticulo = req.body;
+  try {
+    const datosArticulo = req.body;
 
-        if (!datosArticulo.nombre || !datosArticulo.codigo_barras) {
-            return res.status(400).json({ message: "El nombre y el código de barras son obligatorios." });
-        }
-
-        if (req.files && req.files.length > 0) {
-            const codigoCarpeta = datosArticulo.codigo_interno || datosArticulo.codigo_barras || 'sin_codigo';
-            
-            const rutaDefinitiva = path.join(__dirname, '../../uploads/articulos', codigoCarpeta);
-            if (!fs.existsSync(rutaDefinitiva)) {
-                fs.mkdirSync(rutaDefinitiva, { recursive: true });
-            }
-
-            datosArticulo.imagenes = req.files.map((file, index) => {
-                const extension = path.extname(file.originalname);
-                const nuevoNombre = `${codigoCarpeta}-${index}${extension}`; // Ej: LDR-005-0.png
-                
-                const rutaFisicaNueva = path.join(rutaDefinitiva, nuevoNombre);
-                fs.renameSync(file.path, rutaFisicaNueva);
-
-                return {
-                    ruta_archivo: `/uploads/articulos/${codigoCarpeta}/${nuevoNombre}`,
-                    orden: index
-                };
-            });
-        }
-
-        const resultado = await Articulo.crearArticulo(datosArticulo);
-
-        res.status(201).json({
-            message: "Artículo creado exitosamente con su marca y precio",
-            id: resultado.insertId,
-            imagenesGuardadas: datosArticulo.imagenes ? datosArticulo.imagenes.length : 0
-        });
-
-    } catch (error) {
-        console.error("Error en crearNuevoArticulo:", error);
-        res.status(500).json({ message: "Error interno al guardar el artículo" });
+    if (!datosArticulo.nombre || !datosArticulo.codigo_barras) {
+      return res.status(400).json({
+        message: "El nombre y el código de barras son obligatorios.",
+      });
     }
+
+    const resultado = await Articulo.crearArticulo(datosArticulo);
+    const nuevoArticuloId = resultado.insertId;
+
+    if (req.files && req.files.length > 0) {
+      const imagenesGuardadas = [];
+
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const resultadoCloudinary = await subirImagenArticuloACloudinary(
+          file.buffer,
+          nuevoArticuloId,
+          i,
+        );
+        imagenesGuardadas.push({
+          ruta_archivo: resultadoCloudinary.secure_url,
+          orden: i,
+        });
+      }
+
+      await Articulo.actualizarArticulo(
+        nuevoArticuloId,
+        datosArticulo,
+        imagenesGuardadas,
+        [],
+      );
+    }
+
+    res.status(201).json({
+      message: "Artículo creado exitosamente con su marca y precio",
+      id: nuevoArticuloId,
+      imagenesGuardadas: req.files ? req.files.length : 0,
+    });
+  } catch (error) {
+    console.error("Error en crearNuevoArticulo:", error);
+    res.status(500).json({ message: "Error interno al guardar el artículo" });
+  }
 };
 
 const editarArticulo = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const datosArticulo = req.body;
+  try {
+    const { id } = req.params;
+    const datosArticulo = req.body;
 
-        // 1. Capturar IDs de imágenes a eliminar (El frontend enviará un texto como "[1, 5]")
-        let imagenes_a_eliminar = [];
-        if (datosArticulo.imagenes_a_eliminar) {
-            try {
-                imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
-            } catch {
-                return res.status(400).json({ message: 'Formato inválido en imagenes_a_eliminar' });
-            }
-        }
-
-        // 2. Procesar las imágenes NUEVAS que entraron por Multer
-        let nuevas_imagenes = [];
-        if (req.files && req.files.length > 0) {
-            const codigoCarpeta = datosArticulo.codigo_interno || datosArticulo.codigo_barras || 'sin_codigo';
-            
-            // 1. Aseguramos que la carpeta exista (por si el artículo no tenía fotos antes)
-            const rutaDefinitiva = path.join(__dirname, '../../uploads/articulos', codigoCarpeta);
-            if (!fs.existsSync(rutaDefinitiva)) {
-                fs.mkdirSync(rutaDefinitiva, { recursive: true });
-            }
-
-            let maxOrdenActual = await Articulo.obtenerMaxOrden(id);
-            let siguienteOrden = maxOrdenActual + 1;
-
-            nuevas_imagenes = req.files.map((file) => {
-                const extension = path.extname(file.originalname);
-                const nuevoNombre = `${codigoCarpeta}-${siguienteOrden}${extension}`;
-                
-                const rutaFisicaNueva = path.join(rutaDefinitiva, nuevoNombre);
-                fs.renameSync(file.path, rutaFisicaNueva);
-
-                const objImagen = {
-                    ruta_archivo: `/uploads/articulos/${codigoCarpeta}/${nuevoNombre}`,
-                    orden: siguienteOrden
-                };
-                
-                siguienteOrden++;
-                return objImagen;
-            });
-        }
-
-        // 3. Enviamos todo al modelo: textos, fotos nuevas y fotos a borrar
-        await Articulo.actualizarArticulo(id, datosArticulo, nuevas_imagenes, imagenes_a_eliminar);
-
-        res.json({ 
-            message: "Artículo actualizado exitosamente.",
-            fotosNuevasAgregadas: nuevas_imagenes.length,
-            fotosViejasBorradas: imagenes_a_eliminar.length
-        });
-
-    } catch (error) {
-        console.error("Error en editarArticulo:", error);
-        res.status(500).json({ message: "Error interno al actualizar el artículo." });
+    let imagenes_a_eliminar = [];
+    if (datosArticulo.imagenes_a_eliminar) {
+      try {
+        imagenes_a_eliminar = JSON.parse(datosArticulo.imagenes_a_eliminar);
+      } catch {
+        return res
+          .status(400)
+          .json({ message: "Formato inválido en imagenes_a_eliminar" });
+      }
     }
+
+    // Eliminar de Cloudinary las imágenes marcadas para borrar
+    if (imagenes_a_eliminar.length > 0) {
+      const [imagenesABorrar] = await pool.query(
+        `SELECT ruta_archivo FROM Imagenes WHERE imagen_id IN (?)`,
+        [imagenes_a_eliminar],
+      );
+      for (const img of imagenesABorrar) {
+        try {
+          const matches = img.ruta_archivo.match(
+            /autonort\/articulos\/\d+\/img_\d+/,
+          );
+          if (matches) {
+            await cloudinary.uploader.destroy(matches[0]);
+          }
+        } catch (err) {
+          console.error("Error al eliminar imagen de Cloudinary:", err);
+        }
+      }
+    }
+
+    let nuevas_imagenes = [];
+    if (req.files && req.files.length > 0) {
+      const maxOrden = await Articulo.obtenerMaxOrden(id);
+      let siguienteOrden = maxOrden + 1;
+
+      for (const file of req.files) {
+        const resultadoCloudinary = await subirImagenArticuloACloudinary(
+          file.buffer,
+          id,
+          siguienteOrden,
+        );
+        nuevas_imagenes.push({
+          ruta_archivo: resultadoCloudinary.secure_url,
+          orden: siguienteOrden,
+        });
+        siguienteOrden++;
+      }
+    }
+
+    await Articulo.actualizarArticulo(
+      id,
+      datosArticulo,
+      nuevas_imagenes,
+      imagenes_a_eliminar,
+    );
+
+    res.json({
+      message: "Artículo actualizado exitosamente.",
+      fotosNuevasAgregadas: nuevas_imagenes.length,
+      fotosViejasBorradas: imagenes_a_eliminar.length,
+    });
+  } catch (error) {
+    console.error("Error en editarArticulo:", error);
+    res
+      .status(500)
+      .json({ message: "Error interno al actualizar el artículo." });
+  }
 };
 
 const eliminarArticulo = async (req, res) => {
@@ -142,83 +179,32 @@ const reactivarArticulo = async (req,res) => {
 }
 
 const cambiarOrdenImagenes = async (req, res) => {
-    try {
-        const { imagenes } = req.body;
+  try {
+    const { imagenes } = req.body;
 
-        if (!imagenes || !Array.isArray(imagenes)) {
-            return res.status(400).json({ message: "Se requiere un arreglo de imágenes con su nuevo orden." });
-        }
-
-        const ids = imagenes.map(img => img.imagen_id);
-        
-        // 1. Obtener detalles de la Base de Datos
-        const detallesImagenes = await Articulo.obtenerDetallesImagenes(ids);
-
-        const mapaDetalles = {};
-        detallesImagenes.forEach(det => {
-            mapaDetalles[det.imagen_id] = det;
-        });
-
-        // FASE 1: Renombrar físicamente a un archivo temporal
-        detallesImagenes.forEach(img => {
-            // TRUCO: Le quitamos el "/" del inicio a la ruta de BD para que Node.js no se confunda al unir las carpetas
-            const rutaLimpia = img.ruta_archivo.startsWith('/') ? img.ruta_archivo.substring(1) : img.ruta_archivo;
-            const rutaFisicaOriginal = path.join(__dirname, '../../', rutaLimpia);
-            
-            const extension = path.extname(img.ruta_archivo);
-            const codigoCarpeta = img.codigo_interno || img.codigo_barras || 'sin_codigo';
-            
-            const nombreTemp = `temp-swap-${img.imagen_id}${extension}`;
-            const rutaFisicaTemp = path.join(__dirname, '../../uploads/articulos', codigoCarpeta, nombreTemp);
-
-            // Verificamos si existe. Si no, le gritamos a la consola para saber por qué
-            if (fs.existsSync(rutaFisicaOriginal)) {
-                fs.renameSync(rutaFisicaOriginal, rutaFisicaTemp);
-                img.rutaFisicaTemp = rutaFisicaTemp;
-            } else {
-                console.log(`⚠️ ALERTA: No encontré la foto en esta ruta: ${rutaFisicaOriginal}`);
-            }
-            
-            img.extension = extension;
-            img.codigoCarpeta = codigoCarpeta;
-        });
-
-        // FASE 2: Renombrar al definitivo y armar el paquete de actualización
-        const datosParaBD = [];
-
-        for (const imgNueva of imagenes) {
-            const imgActual = mapaDetalles[imgNueva.imagen_id];
-            
-            if (!imgActual) continue;
-
-            const nuevoNombre = `${imgActual.codigoCarpeta}-${imgNueva.orden}${imgActual.extension}`;
-            const rutaFisicaFinal = path.join(__dirname, '../../uploads/articulos', imgActual.codigoCarpeta, nuevoNombre);
-            const nuevaRutaRelativa = `/uploads/articulos/${imgActual.codigoCarpeta}/${nuevoNombre}`;
-
-            // Si el archivo físico sí se logró renombrar en la fase 1, lo pasamos al nombre final
-            if (imgActual.rutaFisicaTemp && fs.existsSync(imgActual.rutaFisicaTemp)) {
-                fs.renameSync(imgActual.rutaFisicaTemp, rutaFisicaFinal);
-            }
-
-            // SÍ O SÍ armamos el paquete para actualizar la base de datos (exista físicamente la foto o no)
-            datosParaBD.push({
-                imagen_id: imgNueva.imagen_id,
-                orden: imgNueva.orden,
-                ruta_archivo: nuevaRutaRelativa
-            });
-        }
-
-        // 3. Forzamos la actualización en la BD
-        if (datosParaBD.length > 0) {
-            await Articulo.actualizarOrdenImagenes(datosParaBD);
-        }
-
-        res.json({ message: "Orden de imágenes y nombres de archivos sincronizados correctamente." });
-        
-    } catch (error) {
-        console.error("Error en cambiarOrdenImagenes:", error);
-        res.status(500).json({ message: "Error al reordenar y renombrar los archivos físicos." });
+    if (!imagenes || !Array.isArray(imagenes)) {
+      return res.status(400).json({
+        message: "Se requiere un arreglo de imágenes con su nuevo orden.",
+      });
     }
+
+    const datosParaBD = imagenes.map((img) => ({
+      imagen_id: img.imagen_id,
+      orden: img.orden,
+      ruta_archivo: img.ruta_archivo, // se mantiene igual, no se renombra
+    }));
+
+    if (datosParaBD.length > 0) {
+      await Articulo.actualizarOrdenImagenes(datosParaBD);
+    }
+
+    res.json({
+      message: "Orden de imágenes actualizado correctamente.",
+    });
+  } catch (error) {
+    console.error("Error en cambiarOrdenImagenes:", error);
+    res.status(500).json({ message: "Error al reordenar las imágenes." });
+  }
 };
 
 const agregarMarca = async (req, res) => {
