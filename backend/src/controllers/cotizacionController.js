@@ -7,6 +7,48 @@ const pool = require("../config/database");
 const imagenService = require("../services/imagenService");
 const { uploadImagenesCotizacion } = require("../middleware/uploadMiddleware");
 
+async function notificarCambioEstado(cotizacion, nuevoEstado) {
+  const estadosQueNotifican = ["aprobada", "rechazada", "vencida"];
+  if (!estadosQueNotifican.includes(nuevoEstado)) return;
+  if (nuevoEstado === cotizacion.estado) return;
+
+  try {
+    const total = parseFloat(cotizacion.total) || 0;
+
+    let tokenPublico = cotizacion.token_publico;
+    if (!tokenPublico) {
+      tokenPublico = await Cotizacion.generarTokenPublico(
+        cotizacion.cotizacion_id,
+      );
+    }
+
+    const linkPublico = `${process.env.FRONTEND_URL}/cotizacion/${tokenPublico}`;
+
+    fetch(`${process.env.NOTIFICATIONS_URL}/api/email/estado-cotizacion`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.NOTIFICATIONS_SECRET,
+      },
+      body: JSON.stringify({
+        to: cotizacion.email,
+        cliente_nombre: cotizacion.cliente_nombre,
+        numero_cotizacion: cotizacion.numero_cotizacion,
+        fecha_emision: cotizacion.fecha_emision,
+        marca: cotizacion.marca,
+        modelo: cotizacion.modelo,
+        placa: cotizacion.placa,
+        total: total.toFixed(2),
+        estado: nuevoEstado,
+        link_publico: linkPublico,
+      }),
+    }).catch((err) =>
+      console.error("Error al enviar notificación de estado:", err),
+    );
+  } catch (err) {
+    console.error("Error al preparar notificación de estado:", err);
+  }
+}
 const cotizacionController = {
   async crear(req, res) {
     const {
@@ -190,7 +232,8 @@ const cotizacionController = {
 
   async listar(req, res) {
     try {
-      const { estado, cliente_id, es_modelo, busqueda, page, pageSize } = req.query;
+      const { estado, cliente_id, es_modelo, busqueda, page, pageSize } =
+        req.query;
 
       const resultado = await Cotizacion.listarCotizaciones({
         estado,
@@ -208,7 +251,7 @@ const cotizacionController = {
           page: resultado.page,
           pageSize: resultado.pageSize,
           totalPages: resultado.totalPages,
-        }
+        },
       });
     } catch (error) {
       console.error("Error al listar cotizaciones:", error);
@@ -263,7 +306,7 @@ const cotizacionController = {
         });
       }
 
-      const estadosBloqueados = ["aprobada", "rechazada"];
+      const estadosBloqueados = ["aprobada", "rechazada", "vencida"];
       if (estadosBloqueados.includes(cotizacionExistente.estado)) {
         return res.status(400).json({
           success: false,
@@ -330,6 +373,7 @@ const cotizacionController = {
         }
 
         await conn.commit();
+notificarCambioEstado(cotizacionExistente, estado);
 
         res.json({
           success: true,
@@ -568,7 +612,8 @@ const cotizacionController = {
       res.json({
         success: true,
         data: {
-          numero: cotizacion.cotizacion_id,
+          numero:
+            cotizacion.numero_cotizacion || `#${cotizacion.cotizacion_id}`,
           fecha_emision: cotizacion.fecha_emision,
           cliente_nombre: cotizacion.cliente_nombre,
           vehiculo: `${cotizacion.marca} ${cotizacion.modelo} - ${cotizacion.placa}`,
@@ -590,6 +635,35 @@ const cotizacionController = {
       res.status(500).json({
         success: false,
         message: "Error al obtener la cotización",
+      });
+    }
+  },
+  async obtenerImagenesPorToken(req, res) {
+    try {
+      const { token } = req.params;
+
+      const cotizacion = await Cotizacion.encontrarToken(token);
+      if (!cotizacion) {
+        return res.status(404).json({
+          success: false,
+          message: "Cotización no encontrada o link expirado",
+        });
+      }
+
+      const [imagenes] = await pool.execute(
+        `SELECT imagen_id, ruta_archivo, descripcion, orden
+       FROM Imagenes
+       WHERE cotizacion_id = ? AND visible_cliente = 1
+       ORDER BY orden ASC`,
+        [cotizacion.cotizacion_id],
+      );
+
+      res.json({ success: true, data: imagenes });
+    } catch (error) {
+      console.error("Error al obtener imágenes públicas:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al obtener las imágenes",
       });
     }
   },
@@ -706,5 +780,6 @@ const cotizacionController = {
       });
     }
   },
+  
 };
 module.exports = cotizacionController;
