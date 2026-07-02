@@ -382,23 +382,27 @@ class PDFService {
         </tr>
       </table>
     </div>
-    <div class="cotizacion-box">
-      <div class="cot-header">COTIZACIÓN</div>
-      <table>
-        <tr>
-          <td>N°:</td>
-          <td><strong>${this.escaparHTML(numeroMostrar)}</strong></td>
-        </tr>
-        <tr>
-          <td>FECHA:</td>
-          <td>${formatFecha(cotizacion.fecha_emision)}</td>
-        </tr>
-        <tr>
-          <td>MONEDA:</td>
-          <td>SOLES</td>
-        </tr>
-      </table>
-    </div>
+   <div class="cotizacion-box">
+  <div class="cot-header">COTIZACIÓN</div>
+  <table>
+    <tr>
+      <td>N°:</td>
+      <td><strong>${this.escaparHTML(numeroMostrar)}</strong></td>
+    </tr>
+    <tr>
+      <td>FECHA:</td>
+      <td>${formatFecha(cotizacion.fecha_emision)}</td>
+    </tr>
+    <tr>
+      <td>VENCE:</td>
+      <td>${cotizacion.fecha_vencimiento ? formatFecha(cotizacion.fecha_vencimiento) : "-"}</td>
+    </tr>
+    <tr>
+      <td>MONEDA:</td>
+      <td>SOLES</td>
+    </tr>
+  </table>
+</div>
   </div>
 
   <!-- DATOS VEHÍCULO -->
@@ -479,10 +483,13 @@ class PDFService {
   <!-- RESUMEN + OBSERVACIONES -->
   <div class="resumen-grid">
     <div class="observaciones-box">
-      <h4>Observaciones y Condiciones</h4>
-      <p style="margin-bottom:6px;">${this.escaparHTML(cotizacion.observaciones || "Ninguna")}</p>
+      <h4>Observaciones</h4>
+      <p style="margin-bottom:6px;">
+        ${this.escaparHTML(cotizacion.observaciones || "Ninguna")}
+      </p>
+      <h4 style="margin-top:8px;">Condiciones</h4>
       <ul>
-        <li>Cotización válida por 15 días</li>
+        <li>Cotización válida hasta: ${cotizacion.fecha_vencimiento ? formatFecha(cotizacion.fecha_vencimiento) : "15 días desde emisión"}</li>
         <li>Los precios incluyen IGV</li>
         <li>La garantía aplica según política del taller</li>
         <li>Para cualquier consulta, contactar al área de servicio</li>

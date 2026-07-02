@@ -31,6 +31,7 @@ const VerCotizacionPublica = () => {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [cotizacion, setCotizacion] = useState(null);
+  const [imagenes, setImagenes] = useState([]);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -40,8 +41,12 @@ const VerCotizacionPublica = () => {
   const cargarCotizacion = async () => {
     try {
       setLoading(true);
-      const response = await cotizacionService.obtenerPorToken(token);
-      setCotizacion(response.data);
+      const [cotizacionResponse, imagenesResponse] = await Promise.all([
+        cotizacionService.obtenerPorToken(token),
+        cotizacionService.obtenerImagenesPublicas(token),
+      ]);
+      setCotizacion(cotizacionResponse.data);
+      setImagenes(imagenesResponse.data || []);
     } catch (err) {
       console.error("Error al cargar cotización pública:", err);
       setError(true);
@@ -76,6 +81,7 @@ const VerCotizacionPublica = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
+        {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div>
             <p className="text-xs text-gray-400">COTIZACIÓN</p>
@@ -90,6 +96,7 @@ const VerCotizacionPublica = () => {
           </span>
         </div>
 
+        {/* Cliente y Vehículo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-xs text-gray-500 uppercase mb-1">Cliente</p>
@@ -103,6 +110,7 @@ const VerCotizacionPublica = () => {
           </div>
         </div>
 
+        {/* Detalles */}
         <table className="w-full text-sm mb-6">
           <thead className="bg-gray-100">
             <tr>
@@ -128,6 +136,7 @@ const VerCotizacionPublica = () => {
           </tbody>
         </table>
 
+        {/* Totales */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6 max-w-xs ml-auto text-sm">
           <div className="flex justify-between mb-1">
             <span className="text-gray-600">Subtotal:</span>
@@ -139,10 +148,40 @@ const VerCotizacionPublica = () => {
           </div>
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-300">
             <span>Total:</span>
-            <span className="text-brand">{formatMoney(cotizacion.total)}</span>
+            <span className="text-blue-600">
+              {formatMoney(cotizacion.total)}
+            </span>
           </div>
         </div>
 
+        {/* Imágenes del vehículo */}
+        {imagenes.length > 0 && (
+          <div className="mb-6">
+            <h3 className="font-semibold text-gray-700 mb-3">
+              Imágenes del vehículo ({imagenes.length})
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {imagenes.map((imagen) => (
+                <div key={imagen.imagen_id}>
+                  <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                    <img
+                      src={imagen.ruta_archivo}
+                      alt={imagen.descripcion || "Imagen del vehículo"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {imagen.descripcion && (
+                    <p className="text-xs text-gray-600 mt-1 whitespace-normal break-words">
+                      {imagen.descripcion}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Observaciones */}
         {cotizacion.observaciones && (
           <div>
             <h3 className="font-semibold text-gray-700 mb-2">Observaciones</h3>

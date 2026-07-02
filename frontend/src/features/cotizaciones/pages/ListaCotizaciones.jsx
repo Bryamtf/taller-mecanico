@@ -9,6 +9,7 @@ import {
   DocumentArrowDownIcon,
   ArrowPathIcon,
   MagnifyingGlassIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import Swal from "sweetalert2";
 import cotizacionService from "../services/cotizacionService";
@@ -55,6 +56,12 @@ const ListaCotizaciones = () => {
   });
   const [descargandoId, setDescargandoId] = useState(null);
   const [cotizacionParaCompartir, setCotizacionParaCompartir] = useState(null);
+  
+  const [expandidos, setExpandidos] = useState({});
+
+  const toggleExpandido = (id) => {
+    setExpandidos((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Debounce: actualiza `busqueda` 400ms después de que el usuario deja de escribir
   useEffect(() => {
@@ -243,117 +250,143 @@ const ListaCotizaciones = () => {
 
           {/* Grid de cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {cotizaciones.map((cotizacion) => (
-              <div
-                key={cotizacion.cotizacion_id}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-100"
-              >
-                {/* Número y estado */}
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-xs text-gray-400">COTIZACIÓN</p>
-                    <p className="font-bold text-lg text-gray-800">
-                      {cotizacion.numero_cotizacion ||
-                        `#${cotizacion.cotizacion_id}`}
-                    </p>
+            {cotizaciones.map((cotizacion) => {
+              const estaExpandido = expandidos[cotizacion.cotizacion_id];
+              return (
+                <div
+                  key={cotizacion.cotizacion_id}
+                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-100"
+                >
+                  {/* Header siempre visible — en móvil es clickeable para expandir */}
+                  <div
+                    className="flex justify-between items-start md:cursor-default cursor-pointer"
+                    onClick={() => {
+                      if (window.innerWidth < 768)
+                        toggleExpandido(cotizacion.cotizacion_id);
+                    }}
+                  >
+                    <div>
+                      <p className="text-xs text-gray-400">COTIZACIÓN</p>
+                      <p className="font-bold text-lg text-gray-800">
+                        {cotizacion.numero_cotizacion ||
+                          `#${cotizacion.cotizacion_id}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${getEstadoColor(cotizacion.estado)}`}
+                      >
+                        {getEstadoTexto(cotizacion.estado)}
+                      </span>
+                      <ChevronDownIcon
+                        className={`w-4 h-4 text-gray-400 transition-transform md:hidden ${
+                          estaExpandido ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
                   </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${getEstadoColor(cotizacion.estado)}`}
-                  >
-                    {getEstadoTexto(cotizacion.estado)}
-                  </span>
-                </div>
 
-                {/* Cliente */}
-                <div className="mb-2">
-                  <p className="text-sm font-medium text-gray-800">
-                    {cotizacion.cliente_nombre || "Cliente no especificado"}
-                  </p>
-                  <p className="text-xs text-gray-400">{cotizacion.placa}</p>
-                </div>
+                  {/* Contenido colapsable en móvil, siempre visible en md+ */}
+                  <div
+                    className={`${estaExpandido ? "block" : "hidden"} md:block`}
+                  >
+                    {/* Cliente */}
+                    <div className="mb-2 mt-3">
+                      <p className="text-sm font-medium text-gray-800">
+                        {cotizacion.cliente_nombre || "Cliente no especificado"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {cotizacion.placa}
+                      </p>
+                    </div>
 
-                {/* Fecha y total */}
-                <div className="flex justify-between items-center mb-3 text-sm">
-                  <span className="text-gray-500">
-                    {cotizacion.fecha_emision
-                      ? formatFecha(cotizacion.fecha_emision)
-                      : "Sin fecha"}
-                  </span>
-                  <span className="font-bold text-blue-600">
-                    S/{" "}
-                    {parseFloat(cotizacion.total || 0).toLocaleString("es-PE", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
+                    {/* Fecha y total */}
+                    <div className="flex justify-between items-center mb-3 text-sm">
+                      <span className="text-gray-500">
+                        {cotizacion.fecha_emision
+                          ? formatFecha(cotizacion.fecha_emision)
+                          : "Sin fecha"}
+                      </span>
+                      <span className="font-bold text-blue-600">
+                        S/{" "}
+                        {parseFloat(cotizacion.total || 0).toLocaleString(
+                          "es-PE",
+                          {
+                            minimumFractionDigits: 2,
+                          },
+                        )}
+                      </span>
+                    </div>
 
-                {/* Acciones */}
-                <div className="flex justify-between pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() =>
-                      navigate(`/cotizaciones/${cotizacion.cotizacion_id}`)
-                    }
-                    className="text-gray-500 hover:text-blue-600 transition-colors"
-                    title="Ver"
-                  >
-                    <EyeIcon className="w-5 h-5" />
-                  </button>
-                  {!ESTADOS_BLOQUEADOS.includes(cotizacion.estado) && (
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/cotizaciones/${cotizacion.cotizacion_id}/editar`,
-                        )
-                      }
-                      className="text-gray-500 hover:text-brand transition-colors"
-                      title="Editar"
-                    >
-                      <PencilIcon className="w-5 h-5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() =>
-                      handleDescargarPDF(
-                        cotizacion.cotizacion_id,
-                        cotizacion.numero_cotizacion ||
-                          cotizacion.cotizacion_id,
-                      )
-                    }
-                    disabled={descargandoId === cotizacion.cotizacion_id}
-                    className="text-gray-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Descargar PDF"
-                  >
-                    {descargandoId === cotizacion.cotizacion_id ? (
-                      <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <DocumentArrowDownIcon className="w-5 h-5" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCotizacionParaCompartir(cotizacion.cotizacion_id)
-                    }
-                    className="text-gray-500 hover:text-green-600 transition-colors"
-                    title="Compartir"
-                  >
-                    <ShareIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleEliminar(
-                        cotizacion.cotizacion_id,
-                        cotizacion.numero_cotizacion ||
-                          `#${cotizacion.cotizacion_id}`,
-                      )
-                    }
-                    className="text-gray-500 hover:text-red-600 transition-colors"
-                    title="Eliminar"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
+                    {/* Acciones */}
+                    <div className="flex justify-between pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() =>
+                          navigate(`/cotizaciones/${cotizacion.cotizacion_id}`)
+                        }
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                        title="Ver"
+                      >
+                        <EyeIcon className="w-5 h-5" />
+                      </button>
+                      {!ESTADOS_BLOQUEADOS.includes(cotizacion.estado) && (
+                        <button
+                          onClick={() =>
+                            navigate(
+                              `/cotizaciones/${cotizacion.cotizacion_id}/editar`,
+                            )
+                          }
+                          className="text-gray-500 hover:text-brand transition-colors"
+                          title="Editar"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() =>
+                          handleDescargarPDF(
+                            cotizacion.cotizacion_id,
+                            cotizacion.numero_cotizacion ||
+                              cotizacion.cotizacion_id,
+                          )
+                        }
+                        disabled={descargandoId === cotizacion.cotizacion_id}
+                        className="text-gray-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Descargar PDF"
+                      >
+                        {descargandoId === cotizacion.cotizacion_id ? (
+                          <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <DocumentArrowDownIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCotizacionParaCompartir(cotizacion.cotizacion_id)
+                        }
+                        className="text-gray-500 hover:text-green-600 transition-colors"
+                        title="Compartir"
+                      >
+                        <ShareIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleEliminar(
+                            cotizacion.cotizacion_id,
+                            cotizacion.numero_cotizacion ||
+                              `#${cotizacion.cotizacion_id}`,
+                          )
+                        }
+                        className="text-gray-500 hover:text-red-600 transition-colors"
+                        title="Eliminar"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Paginación */}
