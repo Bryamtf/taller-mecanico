@@ -23,3 +23,16 @@ export const formatFecha = (fecha) => {
   return `${dia}/${mes}/${anio}`;
 };
 
+export const inicializarFechaYDias = (fechaExistente, diasDefault = 0) => {
+  if (fechaExistente) {
+    const fecha = fechaExistente.split("T")[0];
+    const dias = calcularDiasDesdeFecha(fecha);
+    return { fecha, dias: dias || "" };
+  }
+  if (diasDefault > 0) {
+    const fecha = calcularFechaDesdeDias(diasDefault);
+    const dias = calcularDiasDesdeFecha(fecha);
+    return { fecha, dias: dias || String(diasDefault) };
+  }
+  return { fecha: "", dias: "" };
+};

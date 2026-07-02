@@ -52,4 +52,49 @@ router.post("/cotizacion", async (req, res) => {
   }
 });
 
+router.post("/estado-cotizacion", async (req, res) => {
+  try {
+    const {
+      to,
+      cliente_nombre,
+      numero_cotizacion,
+      fecha_emision,
+      marca,
+      modelo,
+      placa,
+      total,
+      estado,
+      link_publico,
+    } = req.body;
+
+    if (!to || !numero_cotizacion || !estado) {
+      return res.status(400).json({
+        success: false,
+        message: "Faltan campos requeridos: to, numero_cotizacion, estado",
+      });
+    }
+
+    const resultado = await emailService.enviarEstadoCotizacion({
+      to,
+      cliente_nombre,
+      numero_cotizacion,
+      fecha_emision,
+      marca,
+      modelo,
+      placa,
+      total,
+      estado,
+      link_publico,
+    });
+
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    console.error("Error al enviar email de estado:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error al enviar el correo",
+    });
+  }
+});
+
 export default router;

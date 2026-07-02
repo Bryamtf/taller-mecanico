@@ -67,6 +67,10 @@ const cotizacionService = {
     const response = await api.get(`/cotizaciones/public/${token}`);
     return response.data;
   },
+  async obtenerImagenesPublicas(token) {
+    const response = await api.get(`/cotizaciones/public/${token}/imagenes`);
+    return response.data;
+  },
 };
 
 export default cotizacionService;
