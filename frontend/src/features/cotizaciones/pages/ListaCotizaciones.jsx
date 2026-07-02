@@ -24,6 +24,7 @@ const getEstadoColor = (estado) => {
     borrador: "bg-gray-200 text-gray-800",
     pendiente: "bg-yellow-200 text-yellow-800",
     aprobada: "bg-green-200 text-green-800",
+    pagada: "bg-emerald-500 text-white",
     rechazada: "bg-red-200 text-red-800",
     vencida: "bg-gray-200 text-gray-500",
   };
@@ -37,6 +38,7 @@ const getEstadoTexto = (estado) => {
     aprobada: "Aprobada",
     rechazada: "Rechazada",
     vencida: "Vencida",
+    pagada: "Pagada",
   };
   return textos[estado] || estado;
 };
@@ -203,6 +205,7 @@ const ListaCotizaciones = () => {
           { valor: "borrador", label: "Borradores", activo: "bg-gray-600" },
           { valor: "pendiente", label: "Pendientes", activo: "bg-yellow-600" },
           { valor: "aprobada", label: "Aprobadas", activo: "bg-green-600" },
+          { valor: "pagada", label: "Pagada", activo: "bg-emerald-600" },
           { valor: "rechazada", label: "Rechazadas", activo: "bg-red-600" },
           { valor: "vencida", label: "Vencidas", activo: "bg-gray-600" },
         ].map(({ valor, label, activo }) => (
