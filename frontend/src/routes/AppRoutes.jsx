@@ -6,6 +6,7 @@ import ClientesPage    from "@/features/clientes/pages/ClientesPage";
 import InventarioPage  from "@/features/inventario/pages/InventarioPage";
 import IncidenciasPage from "@/features/incidencias/pages/IncidenciasPage";
 import ProveedoresPage from "@/features/proveedores/pages/ProveedoresPage";
+import UsuariosPage from "@/features/usuarios/pages/UsuariosPage";
 
 import ListaCotizaciones from "@/features/cotizaciones/pages/ListaCotizaciones";
 import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
@@ -58,7 +59,7 @@ export default function AppRoutes() {
           />
           <Route
             path="/usuarios"
-            element={<div className="text-xl font-semibold">Usuarios</div>}
+            element={<UsuariosPage />}
           />
         </Route>
       </Route>

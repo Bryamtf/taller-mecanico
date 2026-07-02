@@ -10,6 +10,7 @@ const { uploadImagenesCotizacion } = require("../middleware/uploadMiddleware");
 
 // publica
 router.get("/public/:token", cotizacionController.obtenerPorToken);
+router.get("/public/:token/imagenes", cotizacionController.obtenerImagenesPorToken);
 
 // Público (con token, sin auth)
 router.get("/:id/pdf", cotizacionController.descargarPDF);

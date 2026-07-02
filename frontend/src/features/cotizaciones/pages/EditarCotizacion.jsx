@@ -14,6 +14,7 @@ import FormularioDetalle from "../components/FormularioDetalle";
 import {
   calcularFechaDesdeDias,
   calcularDiasDesdeFecha,
+  inicializarFechaYDias,
 } from "../utils/fechaEntrega";
 import { ESTADOS_BLOQUEADOS } from "../utils/estados";
 import { getImagenUrl } from "../utils/imagenUrl";
@@ -49,6 +50,8 @@ const EditarCotizacion = () => {
   const [imagenesPendientes, setImagenesPendientes] = useState([]); // [{file, preview, descripcion}]
   const [subiendoImagenes, setSubiendoImagenes] = useState(false);
   const [eliminandoImagenId, setEliminandoImagenId] = useState(null);
+  const [diasVencimiento, setDiasVencimiento] = useState("");
+  const [fechaVencimiento, setFechaVencimiento] = useState("");
   const fileInputRef = useRef(null);
   const imagenesPendientesRef = useRef([]);
 
@@ -77,9 +80,12 @@ const EditarCotizacion = () => {
         imagenService.listar(id),
       ]);
       const data = response.data;
-      const fechaEntregaInicial = data.fecha_entrega
-        ? data.fecha_entrega.split("T")[0]
-        : "";
+      const entrega = inicializarFechaYDias(data.fecha_entrega);
+      const vencimiento = inicializarFechaYDias(data.fecha_vencimiento);
+
+      setDiasEstimados(entrega.dias);
+      setFechaVencimiento(vencimiento.fecha);
+      setDiasVencimiento(vencimiento.dias);
 
       setFormData({
         cotizacion_id: data.cotizacion_id,
@@ -95,10 +101,10 @@ const EditarCotizacion = () => {
         detalles: data.detalles || [],
         observaciones: data.observaciones || "",
         estado: data.estado,
-        fecha_entrega: fechaEntregaInicial,
+        fecha_entrega: entrega.fecha,
+        fecha_vencimiento: vencimiento.fecha,
       });
       setEstadoOriginal(data.estado);
-      setDiasEstimados(calcularDiasDesdeFecha(fechaEntregaInicial));
       setImagenes(imagenesResponse.data || []);
     } catch (error) {
       console.error("Error al cargar cotización:", error);
@@ -111,6 +117,25 @@ const EditarCotizacion = () => {
 
   const handleUpdate = (data) => {
     setFormData((prev) => ({ ...prev, ...data }));
+  };
+  const handleDiasVencimientoChange = (e) => {
+    let dias = e.target.value;
+    if (dias && parseInt(dias) > 99) dias = "99";
+    setDiasVencimiento(dias);
+    if (dias && parseInt(dias) > 0) {
+      handleUpdate({ fecha_vencimiento: calcularFechaDesdeDias(dias) });
+      setFechaVencimiento(calcularFechaDesdeDias(dias));
+    } else {
+      handleUpdate({ fecha_vencimiento: "" });
+      setFechaVencimiento("");
+    }
+  };
+
+  const handleFechaVencimientoChange = (e) => {
+    const fecha = e.target.value;
+    setFechaVencimiento(fecha);
+    handleUpdate({ fecha_vencimiento: fecha });
+    setDiasVencimiento(calcularDiasDesdeFecha(fecha));
   };
 
   const handleDiasChange = (e) => {
@@ -281,6 +306,7 @@ const EditarCotizacion = () => {
         observaciones: formData.observaciones,
         estado: formData.estado,
         fecha_entrega: formData.fecha_entrega,
+        fecha_vencimiento: formData.fecha_vencimiento,
         detalles: formData.detalles.map((d) => ({
           descripcion_custom: d.descripcion_custom,
           cantidad: d.cantidad,
@@ -356,6 +382,7 @@ const EditarCotizacion = () => {
             <option value="borrador">Borrador</option>
             <option value="pendiente">Pendiente</option>
             <option value="rechazada">Rechazada</option>
+            <option value="vencida">Vencida</option>
           </select>
         </div>
 
@@ -582,6 +609,41 @@ const EditarCotizacion = () => {
                 type="date"
                 value={formData.fecha_entrega || ""}
                 onChange={handleFechaChange}
+                disabled={soloLectura}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-gray-100 disabled:text-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+        {/* Vigencia */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">
+            Vigencia de la Cotización
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Días de vigencia
+              </label>
+              <input
+                type="number"
+                value={diasVencimiento}
+                onChange={handleDiasVencimientoChange}
+                placeholder="Ej: 15"
+                min="1"
+                max="99"
+                disabled={soloLectura}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-gray-100 disabled:text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento
+              </label>
+              <input
+                type="date"
+                value={fechaVencimiento || ""}
+                onChange={handleFechaVencimientoChange}
                 disabled={soloLectura}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-gray-100 disabled:text-gray-500"
               />

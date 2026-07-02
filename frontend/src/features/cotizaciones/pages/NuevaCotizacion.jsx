@@ -70,6 +70,7 @@ const NuevaCotizacion = () => {
       submitData.append("vehiculo_id", formData.vehiculo_id);
       submitData.append("observaciones", formData.observaciones || "");
       submitData.append("fecha_entrega", formData.fecha_entrega || "");
+      submitData.append("fecha_vencimiento", formData.fecha_vencimiento || "");
       submitData.append("descuento", formData.descuento_global || 0);
 
       const detallesParaEnviar = formData.detalles.map((d) => ({

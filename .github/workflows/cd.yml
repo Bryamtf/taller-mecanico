@@ -1,0 +1,17 @@
+name: CD - Despliegue Automático en Render
+
+on:
+  push:
+    branches: [ main ] # Solo se activa al confirmar cambios en main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Desplegar Backend
+        run: |
+          curl -X POST "${{ secrets.RENDER_BACKEND_HOOK }}"
+          
+      - name: Desplegar Frontend
+        run: |
+          curl -X POST "${{ secrets.RENDER_FRONTEND_HOOK }}"

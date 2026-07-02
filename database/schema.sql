@@ -769,3 +769,11 @@ CREATE TABLE IF NOT EXISTS Incidencia_Historial (
 ALTER TABLE Imagenes
   ADD COLUMN incidencia_id INT NULL AFTER articulo_id,
   ADD CONSTRAINT fk_img_incidencia FOREIGN KEY (incidencia_id) REFERENCES Incidencia(incidencia_id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- añadido por Sebastián para features del Front
+-- Soft delete explicito para el modulo de Usuarios y Roles.
+-- Ejecutar manualmente en phpMyAdmin antes de desplegar los cambios backend/frontend.
+ALTER TABLE Usuario
+  ADD COLUMN eliminado TINYINT(1) NOT NULL DEFAULT 0 AFTER activo,
+  ADD INDEX idx_usuario_eliminado (eliminado),
+  ADD INDEX idx_usuario_activo_eliminado (activo, eliminado);

@@ -39,9 +39,10 @@ const NAV_SECTIONS = [
 ];
 
 export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCollapse }) {
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
   const navigate = useNavigate();
   const initial = user?.username?.[0]?.toUpperCase() ?? 'A';
+  const canViewUsers = can?.('ver_usuarios', 'puede_ver') ?? false;
 
   const handleLogout = async () => {
     const result = await swalConfirm('¿Cerrar sesión?', '¿Estás seguro de que deseas salir?');
@@ -81,7 +82,11 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
 
       {/* Navegación */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-4">
-        {NAV_SECTIONS.map((section) => (
+        {NAV_SECTIONS.map((section) => {
+          const items = section.items.filter((item) => item.to !== '/usuarios' || canViewUsers);
+          if (!items.length) return null;
+
+          return (
           <div key={section.label}>
             <p className={[
               'px-4 mb-1 text-[10px] font-semibold tracking-widest text-gray-500 uppercase',
@@ -90,7 +95,7 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
               {section.label}
             </p>
 
-            {section.items.map((item) => (
+            {items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -115,7 +120,8 @@ export default function Sidebar({ isCollapsed, isMobileOpen, onClose, onToggleCo
               </NavLink>
             ))}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Botón cerrar sesión */}
