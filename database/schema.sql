@@ -197,11 +197,12 @@ CREATE TABLE IF NOT EXISTS Articulos (
 
 
 CREATE TABLE IF NOT EXISTS Articulo_Marca_Precio (
-  articulo_id  INT           NOT NULL,
-  marca_id     INT           NOT NULL,
-  precio_venta DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  precio_costo DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  stock_actual INT           NOT NULL DEFAULT 0,
+  articulo_id        INT           NOT NULL,
+  marca_id           INT           NOT NULL,
+  precio_venta       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  precio_costo       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  stock_actual       INT           NOT NULL DEFAULT 0,
+  cantidad_reservada INT           NOT NULL DEFAULT 0 COMMENT 'Unidades comprometidas en cotizaciones aprobadas pendientes de pago',
   PRIMARY KEY (articulo_id, marca_id),
   CONSTRAINT fk_amp_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
   CONSTRAINT fk_amp_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
@@ -225,6 +226,61 @@ CREATE TABLE IF NOT EXISTS Movimiento_inventario (
   CONSTRAINT fk_mov_marca    FOREIGN KEY (marca_id)       REFERENCES Marca_Repuesto(marca_id) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_mov_usuario  FOREIGN KEY (registrado_por) REFERENCES Usuario(username)        ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB COMMENT='Historial de movimientos de inventario';
+
+
+CREATE TABLE IF NOT EXISTS Historial_precio (
+  historial_id          INT           NOT NULL AUTO_INCREMENT,
+  articulo_id           INT           NOT NULL,
+  marca_id              INT           NOT NULL,
+  marca_nombre          VARCHAR(100)  NULL,
+  precio_venta_anterior DECIMAL(10,2) NULL,
+  precio_venta_nuevo    DECIMAL(10,2) NULL,
+  precio_costo_anterior DECIMAL(10,2) NULL,
+  precio_costo_nuevo    DECIMAL(10,2) NULL,
+  registrado_por        VARCHAR(100)  NULL,
+  fecha                 TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (historial_id),
+  INDEX idx_hp_articulo (articulo_id),
+  CONSTRAINT fk_hp_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_hp_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Historial de cambios de precio por artículo y marca';
+
+
+CREATE TABLE IF NOT EXISTS Lote (
+  lote_id           INT           NOT NULL AUTO_INCREMENT,
+  articulo_id       INT           NOT NULL,
+  marca_id          INT           NOT NULL,
+  numero_lote       VARCHAR(50)   NULL     COMMENT 'Código de lote del fabricante (opcional)',
+  cantidad_inicial  INT           NOT NULL DEFAULT 0,
+  cantidad_actual   INT           NOT NULL DEFAULT 0,
+  fecha_vencimiento DATE          NULL     COMMENT 'NULL = producto no vence',
+  fecha_ingreso     DATE          NOT NULL,
+  observaciones     VARCHAR(200)  NULL,
+  registrado_por    VARCHAR(100)  NULL,
+  activo            TINYINT(1)    NOT NULL DEFAULT 1,
+  PRIMARY KEY (lote_id),
+  INDEX idx_lote_articulo (articulo_id, marca_id),
+  INDEX idx_lote_vencimiento (fecha_vencimiento),
+  CONSTRAINT fk_lote_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_lote_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Lotes de inventario con seguimiento de vencimiento por artículo y marca';
+
+
+CREATE TABLE IF NOT EXISTS Reserva_Stock (
+  reserva_id    INT         NOT NULL AUTO_INCREMENT,
+  cotizacion_id INT         NOT NULL,
+  articulo_id   INT         NOT NULL,
+  marca_id      INT         NOT NULL,
+  cantidad      INT         NOT NULL,
+  estado        VARCHAR(20) NOT NULL DEFAULT 'activa' COMMENT 'activa, liberada, consumida',
+  fecha_reserva TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_cierre  TIMESTAMP   NULL,
+  PRIMARY KEY (reserva_id),
+  INDEX idx_rs_cotizacion (cotizacion_id),
+  INDEX idx_rs_articulo   (articulo_id, marca_id),
+  CONSTRAINT fk_rs_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)     ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_rs_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)   ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Reservas de stock vinculadas a cotizaciones aprobadas pendientes de pago';
 
 
 -- =============================================================
@@ -309,15 +365,23 @@ ALTER TABLE Imagenes
 -- BLOQUE 9 — VENTAS
 -- =============================================================
 
+CREATE TABLE IF NOT EXISTS Numeracion_venta (
+  anio               YEAR NOT NULL,
+  correlativo_actual INT  NOT NULL DEFAULT 0,
+  PRIMARY KEY (anio)
+) ENGINE=InnoDB COMMENT='Contador anual de ventas para generar numero_venta';
+
+
 CREATE TABLE IF NOT EXISTS Venta (
   venta_id      INT           NOT NULL AUTO_INCREMENT,
+  numero_venta  VARCHAR(20)   NULL     COMMENT 'Ej: V2025-00000001',
   cliente_id    INT           NOT NULL,
   vehiculo_id   INT           NULL,
   cotizacion_id INT           NULL  COMMENT 'NULL si la venta no viene de una cotización',
   cita_id       INT           NULL  COMMENT 'Orden de trabajo que originó la venta',
   atendido_por  VARCHAR(30)   NULL,
-  estado        VARCHAR(20)   NOT NULL DEFAULT 'pendiente'
-                              COMMENT 'pendiente, completada, anulada',
+  estado        VARCHAR(20)   NOT NULL DEFAULT 'completada'
+                              COMMENT 'completada, anulada',
   tipo_pago     VARCHAR(30)   NOT NULL DEFAULT 'efectivo'
                               COMMENT 'efectivo, tarjeta, transferencia, yape, plin, mixto',
   subtotal      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -327,6 +391,7 @@ CREATE TABLE IF NOT EXISTS Venta (
   observaciones TEXT          NULL,
   fecha_venta   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (venta_id),
+  UNIQUE KEY uq_venta_numero (numero_venta),
   CONSTRAINT fk_venta_cliente    FOREIGN KEY (cliente_id)    REFERENCES Cliente(cliente_id)       ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_venta_vehiculo   FOREIGN KEY (vehiculo_id)   REFERENCES Vehiculo(vehiculo_id)     ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_venta_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES Cotizacion(cotizacion_id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -335,19 +400,31 @@ CREATE TABLE IF NOT EXISTS Venta (
 ) ENGINE=InnoDB COMMENT='Transacciones de venta';
 
 
+CREATE TABLE IF NOT EXISTS Pago_venta (
+  pago_id  INT           NOT NULL AUTO_INCREMENT,
+  venta_id INT           NOT NULL,
+  metodo   VARCHAR(30)   NOT NULL COMMENT 'efectivo, tarjeta, transferencia, yape, plin',
+  monto    DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (pago_id),
+  CONSTRAINT fk_pago_venta FOREIGN KEY (venta_id) REFERENCES Venta(venta_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Desglose de métodos de pago por venta';
+
+
 CREATE TABLE IF NOT EXISTS Detalle_venta (
-  detalle_venta_id INT           NOT NULL AUTO_INCREMENT,
-  venta_id         INT           NOT NULL,
-  articulo_id      INT           NOT NULL,
-  marca_id         INT           NULL  COMMENT 'Marca del repuesto vendido',
-  cantidad         INT           NOT NULL DEFAULT 1,
-  precio_unitario  DECIMAL(10,2) NOT NULL,
-  descuento        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  subtotal         DECIMAL(10,2) NOT NULL,
+  detalle_venta_id  INT           NOT NULL AUTO_INCREMENT,
+  venta_id          INT           NOT NULL,
+  articulo_id       INT           NULL  COMMENT 'NULL para ítems libres (servicios/mano de obra)',
+  marca_id          INT           NULL  COMMENT 'Marca del repuesto vendido',
+  descripcion_custom VARCHAR(255) NULL  COMMENT 'Descripción libre cuando no hay articulo_id',
+  es_servicio       TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '1=mano de obra/servicio',
+  cantidad          INT           NOT NULL DEFAULT 1,
+  precio_unitario   DECIMAL(10,2) NOT NULL,
+  descuento         DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  subtotal          DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (detalle_venta_id),
-  CONSTRAINT fk_dv_venta    FOREIGN KEY (venta_id)    REFERENCES Venta(venta_id)              ON DELETE CASCADE  ON UPDATE CASCADE,
-  CONSTRAINT fk_dv_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)       ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_dv_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id)     ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT fk_dv_venta    FOREIGN KEY (venta_id)    REFERENCES Venta(venta_id)          ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_dv_articulo FOREIGN KEY (articulo_id) REFERENCES Articulos(articulo_id)   ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_dv_marca    FOREIGN KEY (marca_id)    REFERENCES Marca_Repuesto(marca_id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB COMMENT='Líneas de detalle de cada venta';
 
 

@@ -154,13 +154,15 @@ export default function ClientesPage() {
                       >
                         <Pencil size={15} />
                       </button>
-                      <button
-                        onClick={() => handleToggle(c)}
-                        title={c.activo ? 'Desactivar' : 'Activar'}
-                        className={`p-1.5 rounded-lg transition-colors ${c.activo ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-green-500 hover:bg-green-50'}`}
-                      >
-                        {c.activo ? <PowerOff size={15} /> : <Power size={15} />}
-                      </button>
+                      {c.dni_ruc !== '00000000' && (
+                        <button
+                          onClick={() => handleToggle(c)}
+                          title={c.activo ? 'Desactivar' : 'Activar'}
+                          className={`p-1.5 rounded-lg transition-colors ${c.activo ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-green-500 hover:bg-green-50'}`}
+                        >
+                          {c.activo ? <PowerOff size={15} /> : <Power size={15} />}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

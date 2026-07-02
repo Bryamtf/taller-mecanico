@@ -381,7 +381,6 @@ const EditarCotizacion = () => {
           >
             <option value="borrador">Borrador</option>
             <option value="pendiente">Pendiente</option>
-            <option value="aprobada">Aprobada</option>
             <option value="rechazada">Rechazada</option>
             <option value="vencida">Vencida</option>
           </select>

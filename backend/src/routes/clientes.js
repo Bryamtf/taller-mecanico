@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const clienteController = require('../controllers/clienteController');
 
-// Buscar debe ir antes de /:id para evitar conflicto de rutas
+// Rutas especiales antes de /:id para evitar conflictos
 router.get('/buscar', clienteController.buscarClientes);
+router.get('/varios', clienteController.obtenerClienteVarios);
 
 router.get('/',     clienteController.listarClientes);
 router.get('/:id',  clienteController.obtenerCliente);
