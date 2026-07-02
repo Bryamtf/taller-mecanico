@@ -602,6 +602,7 @@ notificarCambioEstado(cotizacionExistente, estado);
         );
 
         await conn.commit();
+        notificarCambioEstado(cotizacion, estado);
 
         res.json({
           success: true,
