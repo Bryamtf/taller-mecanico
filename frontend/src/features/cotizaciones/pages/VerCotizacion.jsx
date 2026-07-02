@@ -226,18 +226,6 @@ const VerCotizacion = () => {
                   )}
                   Rechazar
                 </button>
-                <button
-                  onClick={() => handleCambiarEstadoDesdeAprobada("vencida")}
-                  disabled={cambiandoEstado}
-                  className="text-sm bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {cambiandoEstado ? (
-                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <XCircleIcon className="w-4 h-4" />
-                  )}
-                  Marcar vencida
-                </button>
               </>
             )}
 
