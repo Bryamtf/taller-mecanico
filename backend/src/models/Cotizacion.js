@@ -63,9 +63,9 @@ const Cotizacion = {
                 cli.dni_ruc, cli.telefono, cli.email,
                 v.placa, v.marca, v.modelo, v.color, v.anio, v.vin
          FROM Cotizacion c
-         JOIN Cliente cli ON c.cliente_id = cli.cliente_id
-         JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
-         WHERE c.cotizacion_id = ? AND (c.deleted_at IS NULL OR c.deleted_at IS NULL)`,
+         LEFT JOIN Cliente cli ON c.cliente_id = cli.cliente_id
+         LEFT JOIN Vehiculo v ON c.vehiculo_id = v.vehiculo_id
+         WHERE c.cotizacion_id = ? AND (c.deleted_at IS NULL)`,
       [id],
     );
 

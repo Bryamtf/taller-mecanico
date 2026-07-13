@@ -8,19 +8,32 @@ const {
 } = require("../middleware/authMiddleware");
 const { uploadImagenesCotizacion } = require("../middleware/uploadMiddleware");
 
-// publica
 router.get("/public/:token", cotizacionController.obtenerPorToken);
-router.get("/public/:token/imagenes", cotizacionController.obtenerImagenesPorToken);
-
-// Público (con token, sin auth)
+router.get(
+  "/public/:token/imagenes",
+  cotizacionController.obtenerImagenesPorToken,
+);
 router.get("/:id/pdf", cotizacionController.descargarPDF);
-
-
 router.post("/:id/compartir/whatsapp", cotizacionController.compartirWhatsApp);
 router.post("/:id/compartir/email", cotizacionController.compartirEmail);
 
-// Todas requieren autenticación
 router.use(authMiddleware);
+
+router.get(
+  "/plantillas",
+  checkPermiso("ver_cotizaciones"),
+  cotizacionController.listarPlantillas,
+);
+router.get(
+  "/plantillas/:id",
+  checkPermiso("ver_cotizaciones"),
+  cotizacionController.obtenerPlantilla,
+);
+router.post(
+  "/plantillas",
+  checkPermiso("crear_cotizaciones"),
+  cotizacionController.guardarComoPlantilla,
+);
 
 // CRUD principal
 router.get("/", checkPermiso("ver_cotizaciones"), cotizacionController.listar);
@@ -67,36 +80,7 @@ router.post(
   imagenController.agregar,
 );
 
-/*
-router.post(
-  "/:id/aprobar",
-  checkPermiso("editar_cotizaciones"),
-  cotizacionController.aprobar,
-);
-// Detalles
-router.post(
-  "/:id/detalles",
-  checkPermiso("editar_cotizaciones"),
-  cotizacionController.agregarDetalle,
-);
-router.put(
-  "/detalles/:detalleId",
-  checkPermiso("editar_cotizaciones"),
-  cotizacionController.actualizarDetalle,
-);
-router.delete(
-  "/detalles/:detalleId",
-  checkPermiso("editar_cotizaciones"),
-  cotizacionController.eliminarDetalle,
-);
-*/
 // Utilidades
-/*
-router.post(
-  "/:id/clonar",
-  checkPermiso("crear_cotizaciones"),
-  cotizacionController.clonar,
-);*/
 router.get(
   "/:id/descargar-pdf",
   checkPermiso("ver_cotizaciones"),
@@ -107,4 +91,5 @@ router.post(
   checkPermiso("ver_cotizaciones"),
   cotizacionController.compartir,
 );
+
 module.exports = router;

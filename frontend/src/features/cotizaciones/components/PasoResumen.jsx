@@ -5,7 +5,7 @@ import {
   calcularDiasDesdeFecha,
   inicializarFechaYDias,
 } from "../utils/fechaEntrega";
-
+import cotizacionService from "../services/cotizacionService";
 const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
   const entrega = inicializarFechaYDias(data.fecha_entrega);
   const [fechaEntrega, setFechaEntrega] = useState(entrega.fecha);
@@ -98,22 +98,47 @@ const PasoResumen = ({ data, onGuardar, onPrevious, onUpdate }) => {
     setMostrarModalPlantilla(true);
   };
 
-  const handleGuardarPlantilla = async () => {
-    if (!nombrePlantilla.trim()) {
-      Swal.fire("Error", "Ingrese un nombre para la plantilla", "error");
-      return;
-    }
+ const handleGuardarPlantilla = async () => {
+   if (!nombrePlantilla.trim()) {
+     Swal.fire("Error", "Ingrese un nombre para la plantilla", "error");
+     return;
+   }
 
-    Swal.fire({
-      icon: "success",
-      title: "Plantilla guardada",
-      text: `La plantilla "${nombrePlantilla}" se guardó correctamente`,
-      confirmButtonText: "OK",
-    });
+   try {
+     // Preparar detalles sin descuentos (se resetean a 0 en plantillas)
+     const detallesParaPlantilla = (data.detalles || []).map((d) => ({
+       descripcion_custom: d.descripcion_custom,
+       cantidad: d.cantidad,
+       precio_unitario: d.precio_unitario,
+       descuento: 0,
+       es_servicio: d.es_servicio || 0,
+       articulo_id: d.articulo_id || null,
+       marca_id: d.marca_id || null,
+     }));
 
-    setMostrarModalPlantilla(false);
-    onGuardar();
-  };
+     await cotizacionService.guardarComoPlantilla(
+       nombrePlantilla.trim(),
+       detallesParaPlantilla,
+     );
+
+     Swal.fire({
+       icon: "success",
+       title: "Plantilla guardada",
+       text: `La plantilla "${nombrePlantilla}" se guardó correctamente`,
+       confirmButtonText: "OK",
+     });
+
+     setMostrarModalPlantilla(false);
+     onGuardar(); // guarda la cotización normal también
+   } catch (error) {
+     console.error("Error al guardar plantilla:", error);
+     Swal.fire(
+       "Error",
+       error.response?.data?.message || "No se pudo guardar la plantilla",
+       "error",
+     );
+   }
+ };
 
   const handleGuardarNormal = () => {
     setMostrarModalPlantilla(false);
