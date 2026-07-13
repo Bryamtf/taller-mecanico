@@ -21,6 +21,7 @@
     "react-hook-form": "^7.45.4",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.15.0",
+    "recharts": "^3.9.2",
     "socket.io-client": "^4.6.2",
     "sweetalert2": "^11.7.20",
     "xlsx": "^0.18.5"
