@@ -14,6 +14,8 @@ import NuevaCotizacion from "@/features/cotizaciones/pages/NuevaCotizacion";
 import EditarCotizacion from "@/features/cotizaciones/pages/EditarCotizacion";
 import VerCotizacion from "@/features/cotizaciones/pages/VerCotizacion";
 import VerCotizacionPublica from "@/features/cotizaciones/pages/VerCotizacionPublica";
+import ElegirTipoCotizacion from "@/features/cotizaciones/pages/ElegirTipoCotizacion";
+import SeleccionarPlantilla from "@/features/cotizaciones/pages/SeleccionarPlantilla";
 import VentasPage from "@/features/ventas/pages/VentasPage";
 
 export default function AppRoutes() {
@@ -35,12 +37,11 @@ export default function AppRoutes() {
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/incidencias" element={<IncidenciasPage />} />
           <Route path="/cotizaciones" element={<ListaCotizaciones />} />
-          <Route path="/cotizaciones/nueva" element={<NuevaCotizacion />} />
+          <Route path="/cotizaciones/nueva" element={<ElegirTipoCotizacion />}/>
+          <Route path="/cotizaciones/nueva/desde-cero" element={<NuevaCotizacion />} />
+          <Route path="/cotizaciones/nueva/plantilla" element={<SeleccionarPlantilla />} />
           <Route path="/cotizaciones/:id" element={<VerCotizacion />} />
-          <Route
-            path="/cotizaciones/:id/editar"
-            element={<EditarCotizacion />}
-          />
+          <Route path="/cotizaciones/:id/editar" element={<EditarCotizacion />}/>
 
           <Route path="/ventas" element={<VentasPage />} />
           <Route
@@ -55,10 +56,7 @@ export default function AppRoutes() {
             path="/egresos"
             element={<div className="text-xl font-semibold">Egresos</div>}
           />
-          <Route
-            path="/usuarios"
-            element={<UsuariosPage />}
-          />
+          <Route path="/usuarios" element={<UsuariosPage />} />
         </Route>
       </Route>
 

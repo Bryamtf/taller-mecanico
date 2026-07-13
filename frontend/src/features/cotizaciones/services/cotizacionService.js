@@ -71,6 +71,25 @@ const cotizacionService = {
     const response = await api.get(`/cotizaciones/public/${token}/imagenes`);
     return response.data;
   },
+  async listarPlantillas(busqueda = "") {
+    const response = await api.get("/cotizaciones/plantillas", {
+      params: busqueda ? { busqueda } : {},
+    });
+    return response.data;
+  },
+
+  async obtenerPlantilla(id) {
+    const response = await api.get(`/cotizaciones/plantillas/${id}`);
+    return response.data;
+  },
+
+  async guardarComoPlantilla(nombre_modelo, detalles) {
+    const response = await api.post("/cotizaciones/plantillas", {
+      nombre_modelo,
+      detalles,
+    });
+    return response.data;
+  },
 };
 
 export default cotizacionService;
