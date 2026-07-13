@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Swal from "sweetalert2";
 import WizardStepper from "../components/WizardStepper";
 import PasoCliente from "../components/PasoCliente";
@@ -12,9 +12,13 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const NuevaCotizacion = () => {
   const navigate = useNavigate();
-  const [pasoActual, setPasoActual] = useState(1);
+  const location = useLocation();
 
-  // Datos del formulario
+  // Leer detalles pre-cargados desde plantilla (si vienen)
+  const detallesPlantilla = location.state?.detallesPlantilla || [];
+  const nombrePlantilla = location.state?.nombrePlantilla || null;
+
+  const [pasoActual, setPasoActual] = useState(1);
   const [formData, setFormData] = useState({
     cliente_id: "",
     cliente_nombre: "",
@@ -26,28 +30,24 @@ const NuevaCotizacion = () => {
     modelo: "",
     anio: "",
     color: "",
-    detalles: [],
+    detalles: detallesPlantilla, // pre-cargados desde plantilla o vacío
     imagenes: [],
   });
 
   const pasos = ["Cliente", "Vehículo", "Detalles", "Archivos", "Resumen"];
+
   const handleUpdate = (data) => {
-    setFormData((prev) => {
-      const nuevo = { ...prev, ...data };
-      return nuevo;
-    });
+    setFormData((prev) => ({ ...prev, ...data }));
   };
+
   const handleNext = () => {
-    if (pasoActual < 5) {
-      setPasoActual(pasoActual + 1);
-    }
+    if (pasoActual < 5) setPasoActual(pasoActual + 1);
   };
 
   const handlePrevious = () => {
-    if (pasoActual > 1) {
-      setPasoActual(pasoActual - 1);
-    }
+    if (pasoActual > 1) setPasoActual(pasoActual - 1);
   };
+
   const handleSubmitFinal = async (imagenesDirectas = null) => {
     const imagenesParaEnviar = imagenesDirectas || formData.imagenes;
     if (!imagenesParaEnviar || imagenesParaEnviar.length === 0) {
@@ -58,14 +58,11 @@ const NuevaCotizacion = () => {
       title: "Guardando...",
       text: "Por favor espere",
       allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
+      didOpen: () => Swal.showLoading(),
     });
 
     try {
       const submitData = new FormData();
-
       submitData.append("cliente_id", formData.cliente_id);
       submitData.append("vehiculo_id", formData.vehiculo_id);
       submitData.append("observaciones", formData.observaciones || "");
@@ -79,10 +76,11 @@ const NuevaCotizacion = () => {
         precio_unitario: d.precio_unitario,
         descuento: d.descuento || 0,
         es_servicio: d.es_servicio || 0,
+        articulo_id: d.articulo_id || null,
+        marca_id: d.marca_id || null,
       }));
       submitData.append("detalles", JSON.stringify(detallesParaEnviar));
 
-      // Imágenes - usar las que vienen por parámetro
       if (imagenesParaEnviar && imagenesParaEnviar.length > 0) {
         const descripcionesImagenes = imagenesParaEnviar.map(
           (img) => img.descripcion || "",
@@ -94,8 +92,6 @@ const NuevaCotizacion = () => {
         imagenesParaEnviar.forEach((imagen) => {
           submitData.append("imagenes", imagen.file);
         });
-      } else {
-        console.log("No hay imágenes para enviar");
       }
 
       const response = await cotizacionService.crear(submitData);
@@ -174,14 +170,24 @@ const NuevaCotizacion = () => {
   return (
     <div className="max-w-3xl mx-auto p-6">
       <button
-        onClick={() => navigate("/cotizaciones")}
+        onClick={() => navigate("/cotizaciones/nueva")}
         className="flex items-center gap-2 text-brand hover:text-brand-hover mb-4 transition-colors"
       >
         <ArrowLeftIcon className="w-5 h-5" />
-        <span>Regresar a cotizaciones</span>
+        <span>Regresar</span>
       </button>
 
       <div className="bg-white rounded-xl shadow-lg p-6">
+        {/* Banner si viene de plantilla */}
+        {nombrePlantilla && (
+          <div className="mb-4 bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+            <span>📋</span>
+            <span>
+              Usando plantilla: <strong>{nombrePlantilla}</strong> — los ítems
+              están pre-cargados con precios actualizados.
+            </span>
+          </div>
+        )}
         <WizardStepper pasoActual={pasoActual} pasos={pasos} />
         {renderPaso()}
       </div>
