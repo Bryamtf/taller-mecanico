@@ -3,6 +3,7 @@ import PrivateRoute from "./PrivateRoute";
 import MainLayout from "@/layouts/MainLayout";
 import LoginPage from "@/features/auth/pages/LoginPage";
 import DashboardPage    from "@/features/dashboard/pages/DashboardPage";
+import CitasPage       from "@/features/citas/pages/CitasPage";
 import ClientesPage    from "@/features/clientes/pages/ClientesPage";
 import InventarioPage  from "@/features/inventario/pages/InventarioPage";
 import IncidenciasPage from "@/features/incidencias/pages/IncidenciasPage";
@@ -27,10 +28,7 @@ export default function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
-          <Route
-            path="/citas"
-            element={<div className="text-xl font-semibold">Citas</div>}
-          />
+          <Route path="/citas" element={<CitasPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/incidencias" element={<IncidenciasPage />} />
