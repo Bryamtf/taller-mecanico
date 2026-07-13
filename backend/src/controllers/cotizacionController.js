@@ -50,6 +50,7 @@ async function notificarCambioEstado(cotizacion, nuevoEstado) {
     console.error("Error al preparar notificación de estado:", err);
   }
 }
+
 const cotizacionController = {
   async crear(req, res) {
     const {
@@ -908,6 +909,219 @@ notificarCambioEstado(cotizacionExistente, estado);
       });
     }
   },
+  async  obtenerPlantilla(req, res) {
+  try {
+    const { id } = req.params;
+
+    const plantilla = await Cotizacion.encontrarPorId(id);
+
+    if (!plantilla) {
+      return res.status(404).json({
+        success: false,
+        message: "Plantilla no encontrada",
+      });
+    }
+
+    if (!plantilla.es_modelo) {
+      return res.status(400).json({
+        success: false,
+        message: "Esta cotización no es una plantilla",
+      });
+    }
+
+    // Enriquecer ítems con precios actuales
+    const detallesEnriquecidos = await Promise.all(
+      plantilla.detalles.map(async (detalle) => {
+        // Ítem con artículo y marca — buscar precio actual
+        if (detalle.articulo_id && detalle.marca_id) {
+          const [rows] = await pool.execute(
+            `SELECT amp.precio_venta, amp.stock_actual, m.nombre as marca_nombre
+             FROM Articulo_Marca_Precio amp
+             JOIN Marca_Repuesto m ON m.marca_id = amp.marca_id
+             WHERE amp.articulo_id = ? AND amp.marca_id = ?`,
+            [detalle.articulo_id, detalle.marca_id],
+          );
+
+          if (rows.length > 0) {
+            return {
+              articulo_id: detalle.articulo_id,
+              marca_id: detalle.marca_id,
+              descripcion_custom: detalle.descripcion_custom,
+              cantidad: detalle.cantidad,
+              precio_unitario: Number(rows[0].precio_venta) || 0,
+              descuento: 0, // siempre en 0
+              es_servicio: detalle.es_servicio,
+              subtotal:
+                detalle.cantidad * (Number(rows[0].precio_venta) || 0),
+            };
+          }
+        }
+
+        // Ítem sin artículo (custom/servicio) — precio de la plantilla, descuento en 0
+        return {
+          articulo_id: detalle.articulo_id || null,
+          marca_id: detalle.marca_id || null,
+          descripcion_custom: detalle.descripcion_custom,
+          cantidad: detalle.cantidad,
+          precio_unitario: Number(detalle.precio_unitario) || 0,
+          descuento: 0,
+          es_servicio: detalle.es_servicio,
+          subtotal:
+            detalle.cantidad * (Number(detalle.precio_unitario) || 0),
+        };
+      }),
+    );
+
+    res.json({
+      success: true,
+      data: {
+        plantilla_id: plantilla.cotizacion_id,
+        nombre_modelo: plantilla.nombre_modelo,
+        detalles: detallesEnriquecidos,
+      },
+    });
+  } catch (error) {
+    console.error("Error al obtener plantilla:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener la plantilla",
+    });
+  }
+},
+async  listarPlantillas(req, res) {
+  try {
+    const { busqueda } = req.query;
+
+    let sql = `
+      SELECT
+        c.cotizacion_id,
+        c.nombre_modelo,
+        c.fecha_emision,
+        c.subtotal,
+        c.total,
+        COUNT(dc.detalle_id) as total_items
+      FROM Cotizacion c
+      LEFT JOIN Detalle_cotizacion dc ON dc.cotizacion_id = c.cotizacion_id
+      WHERE c.es_modelo = 1
+        AND c.deleted_at IS NULL
+    `;
+    const params = [];
+
+    if (busqueda && busqueda.trim()) {
+      sql += ` AND c.nombre_modelo LIKE ?`;
+      params.push(`%${busqueda.trim()}%`);
+    }
+
+    sql += ` GROUP BY c.cotizacion_id ORDER BY c.cotizacion_id DESC`;
+
+    const [rows] = await pool.execute(sql, params);
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Error al listar plantillas:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al listar plantillas",
+    });
+  }
+},
+
+async  guardarComoPlantilla(req, res) {
+  try {
+    const { nombre_modelo, detalles } = req.body;
+
+    if (!nombre_modelo || !nombre_modelo.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "El nombre de la plantilla es obligatorio",
+      });
+    }
+
+    if (!detalles || detalles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "La plantilla debe tener al menos un ítem",
+      });
+    }
+
+    let subtotal = 0;
+    const detallesCalc = detalles.map((d) => {
+      const subtotalItem = d.cantidad * d.precio_unitario - (d.descuento || 0);
+      subtotal += subtotalItem;
+      return { ...d, subtotal: subtotalItem };
+    });
+
+    const igv = subtotal * 0.18;
+    const total = subtotal + igv;
+
+    const numeroCotizacion = await generarNumeroCotizacion();
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const plantillaId = await Cotizacion.crear(
+        {
+          cliente_id: null,
+          vehiculo_id: null,
+          cita_id: null,
+          creado_por: req.user.username,
+          es_modelo: 1,
+          nombre_modelo: nombre_modelo.trim(),
+          kilometraje_momento: null,
+          subtotal,
+          descuento: 0,
+          igv,
+          total,
+          fecha_emision: new Date().toISOString().split("T")[0],
+          fecha_vencimiento: null,
+          fecha_entrega: null,
+          observaciones: null,
+          numero_cotizacion: numeroCotizacion,
+        },
+        conn,
+      );
+
+      for (const detalle of detallesCalc) {
+        await DetalleCotizacion.crear(
+          {
+            cotizacion_id: plantillaId,
+            articulo_id: detalle.articulo_id || null,
+            marca_id: detalle.marca_id || null,
+            descripcion_custom: detalle.descripcion_custom || null,
+            cantidad: detalle.cantidad,
+            precio_unitario: detalle.precio_unitario,
+            descuento: detalle.descuento || 0,
+            subtotal: detalle.subtotal,
+            es_servicio: detalle.es_servicio || 0,
+          },
+          conn,
+        );
+      }
+
+      await conn.commit();
+
+      res.status(201).json({
+        success: true,
+        message: "Plantilla guardada exitosamente",
+        data: { plantilla_id: plantillaId, nombre_modelo },
+      });
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
+  } catch (error) {
+    console.error("Error al guardar plantilla:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al guardar la plantilla",
+      error: error.message,
+    });
+  }
+}
   
 };
+
 module.exports = cotizacionController;
